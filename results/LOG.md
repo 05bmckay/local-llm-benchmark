@@ -64,6 +64,20 @@ Judge score distribution across 120 runs: `1: 39 | 2: 21 | 3: 20 | 4: 12 | 5: 28
 - Is the Unsloth Dynamic 2.0 Gemma 4 26B meaningfully better than stock `gemma4:26b`?
 - Can any `<15B` model match `granite3.3:8b` on agentic tasks while being faster?
 
+### Planned follow-up studies (after Waves 2/3)
+
+**1. Thinking-depth study** — targeted mini-sweep comparing thinking on/off for reasoning-capable models.
+- Scope: SmolLM3, Qwen3.5:9b, Qwen3.5:27b, Gemma 4 e4b, Gemma 4 26b, phi4-reasoning:14b, deepseek-r1:14b
+- Per-model toggle: `/think` vs `/no_think` for Qwen/SmolLM3; thinking param for Gemma 4; always-on for phi4-reasoning and deepseek-r1 (compared against non-reasoning siblings)
+- Task subset: `reasoning` + `coding_python` + subset of `instruction` (~11 tasks — where thinking actually matters)
+- Deliverable: "Thinking ROI" report — quality delta vs. latency delta per model. Does thinking earn its latency cost for *your* tasks?
+- New DB column: `thinking_mode` so same (model, task) can have multiple runs distinguished by mode
+- Estimated: ~7 models × 2 modes × 11 tasks = 154 runs, ~30 min
+
+**2. Unsloth Dynamic 2.0 A/B** — head-to-head `gemma4:26b` (stock Q4_K_M) vs `unsloth/gemma-4-26B-A4B-it-GGUF:UD-Q4_K_XL` on all 35 tasks. Single question: does Dynamic 2.0 actually deliver a quality improvement worth the extra disk space?
+
+**3. FIM code-completion eval** (deferred — requires separate harness) — test `qwen2.5-coder:1.5b-base` / `0.5b-base` for editor autocomplete quality using `<|fim_prefix|>…<|fim_middle|>` format. Different eval shape from chat, needs its own task format.
+
 ---
 
 ## Methodology notes
