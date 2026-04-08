@@ -124,16 +124,19 @@ def rejudge(
     runs = list(d.execute(
         "SELECT id, task_id, response, error FROM runs WHERE sweep_id=?", [sid]
     ))
+    existing_scored_ids: set[int] = set()
+    if not overwrite:
+        for row in d.execute(
+            "SELECT run_id FROM scores WHERE judge_model=?",
+            [judge_model],
+        ):
+            existing_scored_ids.add(row[0])
     console.print(f"[bold]rejudging sweep {sid}[/] with [cyan]{judge_model}[/] — {len(runs)} runs (parallelism={parallelism})")
     db_lock = threading.Lock()
 
     def _one(rid, task_id, response, error):
-        if not overwrite:
-            existing = list(d.execute(
-                "SELECT id FROM scores WHERE run_id=? AND judge_model=?", [rid, judge_model]
-            ))
-            if existing:
-                return None
+        if rid in existing_scored_ids:
+            return None
         task = all_tasks.get(task_id)
         if task is None:
             return None
@@ -207,6 +210,12 @@ def run_sweep(
     # pre-populate from DB for resume support
     for row in d.execute("SELECT id, model, task_id FROM runs WHERE sweep_id=?", [sweep_id]):
         run_ids_by_task_model[(row[2], row[1])] = row[0]
+    run_by_id: dict[int, dict] = {}
+    for row in d.execute(
+        "SELECT id, error, response FROM runs WHERE sweep_id=?",
+        [sweep_id],
+    ):
+        run_by_id[row[0]] = {"error": row[1], "response": row[2]}
     already_done = len(run_ids_by_task_model)
     if already_done and resume:
         console.print(f"[yellow]found {already_done} existing runs in sweep, will skip those[/]")
@@ -247,6 +256,7 @@ def run_sweep(
                 }
                 rid = d["runs"].insert(row).last_pk
                 run_ids_by_task_model[(t.id, m.name)] = rid
+                run_by_id[rid] = {"error": res.error, "response": res.text}
                 prog.advance(gen_task)
             ollama.unload(m.name)
 
@@ -266,7 +276,7 @@ def run_sweep(
         rid = run_ids_by_task_model[(t.id, m.name)]
         if rid in already_scored:
             return rid, None
-        run = d["runs"].get(rid)
+        run = run_by_id[rid]
         if run.get("error") or not run.get("response", "").strip():
             return rid, {"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": "no output", "judge_model": judge_abs}
         try:
@@ -315,8 +325,8 @@ def run_sweep(
                         pair_jobs.append((t, top_models[i], top_models[j]))
 
         def _pair_one(t, ma, mb):
-            ra = d["runs"].get(run_ids_by_task_model[(t.id, ma)])
-            rb = d["runs"].get(run_ids_by_task_model[(t.id, mb)])
+            ra = run_by_id[run_ids_by_task_model[(t.id, ma)]]
+            rb = run_by_id[run_ids_by_task_model[(t.id, mb)]]
             if not ra["response"].strip() or not rb["response"].strip():
                 return None
             try:
