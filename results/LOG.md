@@ -14,6 +14,22 @@ Targeted search for models that could upset the current leaders. Benchmarks cite
 - **Aider Polyglot local-runnable rankings**: DeepSeek-V3.2 Reasoner 74.2% (too big) → Qwen3-235B A22B 59.6% (too big) → Qwen3-32B 40% → Qwen2.5-Coder-32B 16.4% → Llama 4 Maverick 15.6%. **Top sub-35B coding model per this benchmark is Qwen3-32B.**
 - **Unsloth Dynamic 2.0 GGUFs** are a real quality improvement, not marketing. Lower KL divergence than stock imatrix quants across Llama 4, Gemma 3, Qwen 3.5. Relevant to our planned A/B.
 
+### Claude-distilled fine-tunes pulled 2026-04-08
+
+Community uploads from `Jackrong` — SFT on ~14,000 Claude 4.6 Opus-style reasoning traces. Base is Qwen3.5 across all sizes.
+
+| Model | Base | Bucket | Competing with |
+|---|---|---|---|
+| `Jackrong/Qwen3.5-4B-Claude-4.6-Opus-Reasoning-Distilled-GGUF` | Qwen3.5 4B | `<7B` | SmolLM3, phi4-mini on reasoning |
+| `Jackrong/Qwen3.5-9B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF` | Qwen3.5 9B | `<10B` | **Direct A/B vs. user's `qwen3.5:9b`** — does Claude distillation add measurable quality? |
+| `Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF` | Qwen3.5 27B | `<35B` | **Direct A/B vs. user's `qwen3.5:27b`** — same question at scale |
+
+**Caveats:**
+- ToS gray area: Anthropic's terms prohibit training on outputs. Community uploads only; personal use is fine, redistribution is legally risky.
+- Not true distillation (no logits) — SFT on synthetic outputs
+- Single-uploader quality risk — no independent benchmark validation
+- **Judge bias**: Claude Sonnet 4.6 is our judge. See methodology section for mitigation plan.
+
 ### Dark horses pulled 2026-04-08
 
 **1. `hf.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf`** — BFCL specialist
@@ -160,5 +176,27 @@ Judge score distribution across 120 runs: `1: 39 | 2: 21 | 3: 20 | 4: 12 | 5: 28
 - **Composite**: (quality/5) × tokens/sec — favors "fast enough" models for interactive use
 - **Size buckets**: `<1B`, `<3B`, `<7B`, `<10B`, `<15B`, `<25B`, `<35B` — leaderboards are fairness-adjusted per bucket
 - **Hardware**: MacBook Pro M4 Pro, 24GB unified memory
-- **Inference**: Ollama, Q4_K_M quantization, num_ctx=8192, temperature=0.2
+- **Inference**: Ollama, Q4_K_M quantization (default), num_ctx=8192, temperature=0.2
 - **Judge parallelism**: 6 concurrent `claude` CLI subprocesses
+
+### ⚠️ Judge bias risk with Claude-distilled models
+
+We're benching Jackrong's Qwen3.5-Claude-4.6-Opus-Reasoning-Distilled variants against their base Qwen3.5 siblings. Because our judge is Claude Sonnet 4.6, **there's a real risk of distributional bias**: the judge may prefer outputs that "sound like" Claude's training distribution regardless of whether they're actually more correct. This could artificially inflate distill scores.
+
+**Mitigations when analyzing distill results:**
+
+1. **Look at category-level deltas, not overall averages.** If a distill beats its base on `reasoning` and `coding_python` but ties or loses on `writing_business`/`pm`/`agentic_tools`, that's a *real* reasoning gain (distill's specialty). If it wins *uniformly* across all categories, that's a flag for stylistic preference / judge bias.
+
+2. **Cross-judge a sample with Opus.** Once a sweep is done, run `bench rejudge --sweep-id <id> --judge-model claude-opus-4-6 --tag "opus-cross-check"` on distill-vs-base pairs. If Opus agrees with Sonnet, the finding is robust. If Opus disagrees, bias is likely.
+
+3. **Spot-check actual outputs.** Read the raw responses side-by-side for distill-vs-base runs where the distill won. Does the distill actually solve the problem better, or is it just phrased more "Claude-like"?
+
+4. **Caveat in findings**: Any claim about Claude-distilled model quality should come with the footnote *"judged by Claude — possible stylistic bias; verify with Opus cross-check and output spot-checks."*
+
+### 🔧 Gemma 4 E2B/E4B quantization finding (2026-04-08)
+
+Unsloth's Gemma 4 documentation recommends **Q8_0 for E2B and E4B**, Dynamic 4-bit only for the larger 26B-A4B and 31B. The default Ollama `gemma4:e4b` tag is Q4_K_M, which may be degrading quality for the small variants specifically.
+
+**Action taken**: pulled `hf.co/unsloth/gemma-4-E4B-it-GGUF:Q8_0` for direct A/B. If Q8 meaningfully outperforms Q4 on the bench, this is a general caveat for ALL Gemma 4 small model usage — the default Ollama tag is wrong.
+
+**Observation from Wave 2 generation phase (pre-judging):** Stock Q4 `gemma4:e4b` outputs ~3x more tokens per task than `gemma3:12b-it-qat` on identical prompts. This could be verbosity, thinking-on-by-default, or quality degradation at Q4. Q8 comparison will clarify.
