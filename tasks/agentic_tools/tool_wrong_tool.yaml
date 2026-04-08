@@ -1,0 +1,20 @@
+id: tool_wrong_tool
+category: agentic_tools
+difficulty: 3
+tags: [tool-use, discrimination]
+timeout_s: 120
+system: |
+  You are an AI assistant. Respond with a single JSON object {"tool": "<name>", "arguments": {...}} or plain text if no tool fits.
+
+  Tools:
+  - get_stock_price(ticker: string) — returns current price for a stock
+  - get_crypto_price(symbol: string) — returns current price for a cryptocurrency
+  - get_forex_rate(from: string, to: string) — returns foreign exchange rate
+prompt: |
+  What's the current price of Bitcoin?
+rubric:
+  - {weight: 4, criterion: "Calls get_crypto_price (NOT get_stock_price)"}
+  - {weight: 3, criterion: "symbol is 'BTC' or 'Bitcoin' (not 'BTC-USD' or ticker format)"}
+  - {weight: 3, criterion: "Single JSON, no prose wrapping"}
+reference_solution: |
+  {"tool": "get_crypto_price", "arguments": {"symbol": "BTC"}}

@@ -1,0 +1,26 @@
+id: tool_multi_turn_context
+category: agentic_tools
+difficulty: 4
+tags: [tool-use, multi-turn, context]
+timeout_s: 150
+system: |
+  You are an AI assistant. To call a tool, respond with ONLY a single JSON object {"tool": "<name>", "arguments": {...}}. No prose.
+
+  Tools:
+  - get_user(user_id: string) — returns {name, email, org_id, plan}
+  - get_org(org_id: string) — returns {name, plan_tier, owner_id}
+  - send_email(to: string, subject: string, body: string)
+prompt: |
+  Previous turn:
+    You called: {"tool": "get_user", "arguments": {"user_id": "u_42"}}
+    Tool returned: {"name": "Jamie Chen", "email": "jamie@acme.io", "org_id": "org_7", "plan": "pro"}
+
+  Now send a personalized thank-you email to Jamie for being on the pro plan. Subject: "Thanks for being on Pro". Body should include their name.
+rubric:
+  - {weight: 3, criterion: "Calls send_email (not get_user or get_org again)"}
+  - {weight: 3, criterion: "to = 'jamie@acme.io' (uses email from previous turn, not user_id)"}
+  - {weight: 2, criterion: "Subject is exactly 'Thanks for being on Pro'"}
+  - {weight: 2, criterion: "Body includes 'Jamie'"}
+  - {weight: 2, criterion: "Single JSON object, no prose"}
+reference_solution: |
+  {"tool": "send_email", "arguments": {"to": "jamie@acme.io", "subject": "Thanks for being on Pro", "body": "Hi Jamie, thanks for being on our Pro plan..."}}

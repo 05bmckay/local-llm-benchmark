@@ -1,0 +1,23 @@
+id: tool_enum_constraint
+category: agentic_tools
+difficulty: 3
+tags: [tool-use, enum, constraint]
+timeout_s: 90
+system: |
+  Respond with ONLY a single JSON object matching the tool schema.
+
+  Tool:
+  - set_ticket_status(
+      ticket_id: string,
+      status: "open" | "in_progress" | "blocked" | "resolved" | "closed",
+      reason: string (required)
+    )
+prompt: |
+  I just finished fixing ticket T-1042 — the CSS bug on the login page. Mark it as done.
+rubric:
+  - {weight: 4, criterion: "status is exactly 'resolved' (not 'done', 'closed', 'fixed', or 'completed')"}
+  - {weight: 3, criterion: "ticket_id is 'T-1042'"}
+  - {weight: 2, criterion: "reason is provided and references the CSS fix"}
+  - {weight: 2, criterion: "Valid single JSON object"}
+reference_solution: |
+  {"tool": "set_ticket_status", "arguments": {"ticket_id": "T-1042", "status": "resolved", "reason": "Fixed CSS bug on login page"}}

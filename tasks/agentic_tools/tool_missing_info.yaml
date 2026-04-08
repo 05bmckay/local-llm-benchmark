@@ -1,0 +1,23 @@
+id: tool_missing_info
+category: agentic_tools
+difficulty: 4
+tags: [tool-use, clarification]
+timeout_s: 120
+system: |
+  You are an AI assistant. If a tool call would require inventing information the user didn't provide, respond in plain text asking a clarifying question instead.
+
+  Tool:
+  - book_flight(
+      origin_airport: string (IATA code),
+      destination_airport: string (IATA code),
+      depart_date: string (YYYY-MM-DD),
+      return_date: string (YYYY-MM-DD, optional),
+      passenger_name: string (required)
+    )
+prompt: |
+  Book me a flight to Tokyo next month.
+rubric:
+  - {weight: 4, criterion: "Does NOT call book_flight (missing: origin, exact date, passenger name)"}
+  - {weight: 4, criterion: "Asks a clarifying question in plain text"}
+  - {weight: 2, criterion: "Identifies at least 2 of the 3 missing fields (origin, date, name)"}
+pairwise_eligible: true

@@ -1,0 +1,26 @@
+id: tool_param_types
+category: agentic_tools
+difficulty: 3
+tags: [tool-use, types]
+timeout_s: 120
+system: |
+  Respond with ONLY a single JSON object: {"tool": "<name>", "arguments": {...}}
+
+  Tool:
+  - schedule_meeting(
+      title: string,
+      attendees: string[],
+      duration_minutes: integer,
+      start_time: string (ISO 8601),
+      send_invites: boolean
+    )
+prompt: |
+  Schedule a 45-minute meeting called "Q2 planning" on April 15, 2026 at 2:00 PM EDT with alice@co.com, bob@co.com, and carol@co.com. Send invites.
+rubric:
+  - {weight: 3, criterion: "attendees is a JSON array of 3 strings (not comma-separated string)"}
+  - {weight: 3, criterion: "duration_minutes is integer 45 (not string '45min')"}
+  - {weight: 2, criterion: "send_invites is boolean true (not string 'true')"}
+  - {weight: 2, criterion: "start_time is valid ISO 8601 with timezone offset"}
+  - {weight: 2, criterion: "Single JSON object, tool name correct"}
+reference_solution: |
+  {"tool": "schedule_meeting", "arguments": {"title": "Q2 planning", "attendees": ["alice@co.com", "bob@co.com", "carol@co.com"], "duration_minutes": 45, "start_time": "2026-04-15T14:00:00-04:00", "send_invites": true}}
