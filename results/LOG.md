@@ -4,6 +4,74 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 
 ---
 
+## 2026-04-08 — Research: dark horse candidates for Wave 2/3
+
+Targeted search for models that could upset the current leaders. Benchmarks cited from LiveBench, Aider Polyglot, BFCL V4, and vendor-reported MMLU/ARC-C/GPQA Diamond.
+
+### Landscape context (confirmed)
+
+- **DeepSeek V3.2**, **Kimi K2.5**, **GLM-5**, **MiniMax M2.5** are the top open-source models overall but ALL are too big for 24GB unified memory (>100GB each). No local path.
+- **Aider Polyglot local-runnable rankings**: DeepSeek-V3.2 Reasoner 74.2% (too big) → Qwen3-235B A22B 59.6% (too big) → Qwen3-32B 40% → Qwen2.5-Coder-32B 16.4% → Llama 4 Maverick 15.6%. **Top sub-35B coding model per this benchmark is Qwen3-32B.**
+- **Unsloth Dynamic 2.0 GGUFs** are a real quality improvement, not marketing. Lower KL divergence than stock imatrix quants across Llama 4, Gemma 3, Qwen 3.5. Relevant to our planned A/B.
+
+### Dark horses pulled 2026-04-08
+
+**1. `hf.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf`** — BFCL specialist
+- **Why**: xLAM-2-8B ranks **#4 on BFCL V4** — ahead of GPT-4o. xLAM-70B is #1, 32B is #2.
+- **Base**: Llama 3.1 8B + Salesforce's `xlam-function-calling-60k` dataset + multi-turn tool-use trajectories
+- **Bucket**: `<10B`
+- **Competing with**: `granite3.3:8b` for agentic tool-calling throne. One of them will lose.
+- **Prediction**: Wins agentic by 0.3+ over granite3.3. Loses non-agentic categories by similar margin.
+
+**2. `hf.co/unsloth/granite-4.0-h-tiny-GGUF`** — next-gen IBM
+- **Why**: IBM claims Granite 4.0 models "significantly outperform Granite 3.3 8B despite being less than half the size." Hybrid MoE architecture.
+- **Size**: 7B total, 1B active parameters (MoE) — should run at ~1B speed with near-7B quality
+- **Bucket**: `<10B`
+- **Competing with**: `granite3.3:8b` directly — if IBM's claim holds, granite3.3 gets deleted.
+- **Prediction**: Faster than granite3.3 by 3-5x, quality within ±10%. If it ties or wins, it replaces granite3.3.
+
+**3. `gpt-oss:20b`** — OpenAI open-weights
+- **Why**: OpenAI's own benchmarks claim it matches o3-mini on math and health. Intelligence Index 24. **Configurable reasoning effort (low/medium/high)** — will be the centerpiece of the thinking-depth study.
+- **Bucket**: `<25B`
+- **Competing with**: `devstral-small-2:24b` in `<25B` and `phi4-reasoning:14b` / `deepseek-r1:14b` across reasoning tasks
+- **Prediction**: Wins reasoning overall. Uncertain on coding — OpenAI hasn't historically dominated local coding benchmarks.
+
+**4. `mistral-nemo:12b-instruct-2407`** — lineage diversity
+- **Why**: Zero Mistral lineage in our `<15B` bucket. Different contamination profile than Qwen/Llama/Gemma/DeepSeek. Apache 2.0, 128k context, battle-tested.
+- **Bucket**: `<15B`
+- **Competing with**: `gemma3:12b-it-qat` for "efficient mid-tier generalist"
+- **Prediction**: Mid-pack overall, possibly top-tier on writing/PM due to Mistral's instruction-following strength. May lose to gemma3:12b on raw speed.
+
+**5. `hf.co/bartowski/NousResearch_Hermes-4-14B-GGUF`** — Nous reasoning fine-tune
+- **Why**: Hybrid reasoning model built on Qwen3 14B base. 5M synthetic tool-calling trajectories. Community GGUF (Ollama library doesn't have it yet).
+- **Published**: MATH-500 ~92%, AIME'24 ~60%, GPQA Diamond ~55%, LiveCodeBench ~45%
+- **Bucket**: `<15B`
+- **Competing with**: `phi4-reasoning:14b` and `deepseek-r1:14b` on reasoning; `granite3.3:8b` on agentic tool-calling
+- **Prediction**: #1 or #2 on agentic_tools in `<15B` bucket. Top-3 on reasoning. Mid-pack on writing.
+
+### Models explicitly rejected
+
+| Model | Reason |
+|---|---|
+| `qwen2.5-coder:14b` | User declined — hermes4:14b covers Qwen3 coding already |
+| `qwen3:14b` / `qwen3.5:14b` | Hermes 4 is already Qwen3 14B + reasoning fine-tune |
+| `llama3.3:8b` | Hermes 3 covers Llama lineage better |
+| `codestral:22b` | Deferred to Wave 3 (`<25B` bucket) per user request |
+| `Yi 1.5`, `InternLM 2.5`, `Exaone 3.5`, `SeaLLM` | Older, restricted license, or wrong specialty |
+| `Kimi K2.5`, `GLM-5`, `MiniMax M2.5`, `DeepSeek V3.2` | Too big for 24GB |
+
+### Updated model roster by bucket (post-pulls)
+
+**`<7B`**: phi4-mini:3.8b, qwen2.5-coder:3b, llama3.2 (removal candidate), SmolLM3:3b, gemma3n:7b
+**`<10B`**: gemma4:e4b, granite3.3:8b, hermes3:8b, **xLAM-2-8b** ⭐, **granite4:tiny** ⭐
+**`<15B`**: gemma3:12b-it-qat, phi4-reasoning:14b, deepseek-r1:14b, **hermes4:14b** ⭐, **mistral-nemo:12b** ⭐
+**`<25B`**: devstral-small-2:24b, **gpt-oss:20b** ⭐
+**`<35B`**: gemma4:26b, qwen3.5:27b, qwen3-coder:30b, **unsloth-gemma4:26b-dynamic** ⭐
+
+⭐ = newly pulled, not yet benched
+
+---
+
 ## 2026-04-08 — Wave 1 + 1B (small models, `<3B`/`<7B`/`<10B`)
 
 **Sweeps:** `20260408-171258-e853` (Wave 1), `20260408-174614-8288` (Wave 1B)
@@ -76,7 +144,13 @@ Judge score distribution across 120 runs: `1: 39 | 2: 21 | 3: 20 | 4: 12 | 5: 28
 
 **2. Unsloth Dynamic 2.0 A/B** — head-to-head `gemma4:26b` (stock Q4_K_M) vs `unsloth/gemma-4-26B-A4B-it-GGUF:UD-Q4_K_XL` on all 35 tasks. Single question: does Dynamic 2.0 actually deliver a quality improvement worth the extra disk space?
 
-**3. FIM code-completion eval** (deferred — requires separate harness) — test `qwen2.5-coder:1.5b-base` / `0.5b-base` for editor autocomplete quality using `<|fim_prefix|>…<|fim_middle|>` format. Different eval shape from chat, needs its own task format.
+**3. Codestral 22B (Mistral coder) — Wave 3 candidate**
+- Fits `<25B` bucket, not `<15B`
+- Would be the Mistral-lineage coder counterpoint to `qwen3-coder:30b`
+- Pull command: `ollama pull codestral:22b`
+- Added by user request 2026-04-08 during Wave 2 monitoring
+
+**4. FIM code-completion eval** (deferred — requires separate harness) — test `qwen2.5-coder:1.5b-base` / `0.5b-base` for editor autocomplete quality using `<|fim_prefix|>…<|fim_middle|>` format. Different eval shape from chat, needs its own task format.
 
 ---
 
