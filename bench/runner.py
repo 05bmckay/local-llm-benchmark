@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import datetime as dt
+import threading
 import uuid
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from rich.console import Console
@@ -101,6 +103,7 @@ def rejudge(
     judge_model: str = judge.SONNET,
     tag: str | None = None,
     overwrite: bool = False,
+    parallelism: int = 6,
 ) -> str:
     """Re-grade stored model outputs with a (possibly different) judge.
 
@@ -121,37 +124,44 @@ def rejudge(
     runs = list(d.execute(
         "SELECT id, task_id, response, error FROM runs WHERE sweep_id=?", [sid]
     ))
-    console.print(f"[bold]rejudging sweep {sid}[/] with [cyan]{judge_model}[/] — {len(runs)} runs")
+    console.print(f"[bold]rejudging sweep {sid}[/] with [cyan]{judge_model}[/] — {len(runs)} runs (parallelism={parallelism})")
+    db_lock = threading.Lock()
+
+    def _one(rid, task_id, response, error):
+        if not overwrite:
+            existing = list(d.execute(
+                "SELECT id FROM scores WHERE run_id=? AND judge_model=?", [rid, judge_model]
+            ))
+            if existing:
+                return None
+        task = all_tasks.get(task_id)
+        if task is None:
+            return None
+        if error or not (response or "").strip():
+            return {"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": f"no output ({tag or ''})".strip(), "judge_model": judge_model}
+        try:
+            js = judge.score_absolute(task, response, model=judge_model)
+            reasoning = js.reasoning if not tag else f"[{tag}] {js.reasoning}"
+            return {
+                "run_id": rid,
+                "score": js.score,
+                "criteria_json": js.model_dump_json(),
+                "reasoning": reasoning,
+                "judge_model": judge_model,
+            }
+        except Exception as e:
+            return {"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": f"judge error: {e}", "judge_model": judge_model}
 
     with Progress(console=console) as prog:
         jt = prog.add_task("rejudge", total=len(runs))
-        for rid, task_id, response, error in runs:
-            if not overwrite:
-                existing = list(d.execute(
-                    "SELECT id FROM scores WHERE run_id=? AND judge_model=?", [rid, judge_model]
-                ))
-                if existing:
-                    prog.advance(jt)
-                    continue
-            task = all_tasks.get(task_id)
-            if task is None:
-                prog.advance(jt); continue
-            if error or not (response or "").strip():
-                d["scores"].insert({"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": f"no output ({tag or ''})".strip(), "judge_model": judge_model})
-                prog.advance(jt); continue
-            try:
-                js = judge.score_absolute(task, response, model=judge_model)
-                reasoning = js.reasoning if not tag else f"[{tag}] {js.reasoning}"
-                d["scores"].insert({
-                    "run_id": rid,
-                    "score": js.score,
-                    "criteria_json": js.model_dump_json(),
-                    "reasoning": reasoning,
-                    "judge_model": judge_model,
-                })
-            except Exception as e:
-                d["scores"].insert({"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": f"judge error: {e}", "judge_model": judge_model})
-            prog.advance(jt)
+        with ThreadPoolExecutor(max_workers=parallelism) as pool:
+            futures = [pool.submit(_one, *r) for r in runs]
+            for fut in as_completed(futures):
+                row = fut.result()
+                if row:
+                    with db_lock:
+                        d["scores"].insert(row)
+                prog.advance(jt)
 
     console.print(f"[bold green]rejudge done[/] sweep={sid} judge={judge_model}")
     return sid
@@ -165,10 +175,17 @@ def run_sweep(
     judge_abs: str = judge.SONNET,
     judge_pair: str = judge.SONNET,
     judge_tiebreak: str = judge.OPUS,
+    judge_parallelism: int = 6,
+    resume: str | None = None,
 ) -> str:
-    sweep_id = dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:4]
     d = db()
-    d["sweeps"].insert({"id": sweep_id, "started_at": dt.datetime.now().isoformat(), "finished_at": "", "notes": "smoke" if smoke else ""})
+    if resume:
+        sweep_id = resume
+        row = d["sweeps"].get(sweep_id)
+        console.print(f"[yellow]resuming sweep {sweep_id}[/]")
+    else:
+        sweep_id = dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:4]
+        d["sweeps"].insert({"id": sweep_id, "started_at": dt.datetime.now().isoformat(), "finished_at": "", "notes": "smoke" if smoke else ""})
 
     models = discover_models(model_filter)
     tasks = load_all(category_filter)
@@ -187,13 +204,27 @@ def run_sweep(
         console.print(f"  • {m.name:32} {m.params_b:5.1f}B  [{m.bucket}]  ~{m.approx_ram_gb:.1f}GB")
 
     run_ids_by_task_model: dict[tuple[str, str], int] = {}
+    # pre-populate from DB for resume support
+    for row in d.execute("SELECT id, model, task_id FROM runs WHERE sweep_id=?", [sweep_id]):
+        run_ids_by_task_model[(row[2], row[1])] = row[0]
+    already_done = len(run_ids_by_task_model)
+    if already_done and resume:
+        console.print(f"[yellow]found {already_done} existing runs in sweep, will skip those[/]")
 
     with Progress(console=console) as prog:
         gen_task = prog.add_task("generate", total=len(models) * len(tasks))
         for m in models:
+            # skip model entirely if all its tasks are already done (resume)
+            tasks_todo = [t for t in tasks if (t.id, m.name) not in run_ids_by_task_model]
+            if not tasks_todo:
+                console.print(f"  [dim]skip {m.name} — already complete[/]")
+                prog.advance(gen_task, advance=len(tasks))
+                continue
             load_budget = LOAD_BUDGET_S.get(m.bucket, 300)
             ollama.warmup(m.name, load_timeout_s=load_budget + 60)
-            for t in tasks:
+            # advance for any tasks already done for this model
+            prog.advance(gen_task, advance=len(tasks) - len(tasks_todo))
+            for t in tasks_todo:
                 timeout = _scaled_timeout(t.timeout_s, m.bucket)
                 with RSSSampler() as s:
                     res = ollama.generate(
@@ -219,39 +250,57 @@ def run_sweep(
                 prog.advance(gen_task)
             ollama.unload(m.name)
 
-    # absolute judging
-    console.print("[bold]judging (absolute)…[/]")
+    # absolute judging — parallelized via thread pool (claude CLI is independent per call)
+    console.print(f"[bold]judging (absolute) — parallelism={judge_parallelism}…[/]")
+    db_lock = threading.Lock()
+
+    # resume: find runs that already have a score with this judge
+    already_scored: set[int] = set()
+    for row in d.execute(
+        "SELECT DISTINCT s.run_id FROM scores s JOIN runs r ON r.id=s.run_id WHERE r.sweep_id=? AND s.judge_model=?",
+        [sweep_id, judge_abs],
+    ):
+        already_scored.add(row[0])
+
+    def _judge_one(t, m):
+        rid = run_ids_by_task_model[(t.id, m.name)]
+        if rid in already_scored:
+            return rid, None
+        run = d["runs"].get(rid)
+        if run.get("error") or not run.get("response", "").strip():
+            return rid, {"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": "no output", "judge_model": judge_abs}
+        try:
+            js = judge.score_absolute(t, run["response"], model=judge_abs)
+            return rid, {
+                "run_id": rid,
+                "score": js.score,
+                "criteria_json": js.model_dump_json(),
+                "reasoning": js.reasoning,
+                "judge_model": judge_abs,
+            }
+        except Exception as e:
+            return rid, {"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": f"judge error: {e}", "judge_model": judge_abs}
+
+    jobs = [(t, m) for t in tasks for m in models]
     with Progress(console=console) as prog:
-        jt = prog.add_task("judge", total=len(models) * len(tasks))
-        for t in tasks:
-            for m in models:
-                rid = run_ids_by_task_model[(t.id, m.name)]
-                run = d["runs"].get(rid)
-                if run.get("error") or not run.get("response", "").strip():
-                    d["scores"].insert({"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": "no output", "judge_model": judge_abs})
-                    prog.advance(jt)
-                    continue
-                try:
-                    js = judge.score_absolute(t, run["response"], model=judge_abs)
-                    d["scores"].insert({
-                        "run_id": rid,
-                        "score": js.score,
-                        "criteria_json": js.model_dump_json(),
-                        "reasoning": js.reasoning,
-                        "judge_model": judge_abs,
-                    })
-                except Exception as e:
-                    d["scores"].insert({"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": f"judge error: {e}", "judge_model": judge_abs})
+        jt = prog.add_task("judge", total=len(jobs))
+        with ThreadPoolExecutor(max_workers=judge_parallelism) as pool:
+            futures = [pool.submit(_judge_one, t, m) for t, m in jobs]
+            for fut in as_completed(futures):
+                _, row = fut.result()
+                if row is not None:
+                    with db_lock:
+                        d["scores"].insert(row)
                 prog.advance(jt)
 
-    # pairwise on top quartile per category
+    # pairwise on top quartile per category — also parallelized
     if do_pairwise and len(models) >= 2:
-        console.print("[bold]judging (pairwise, top quartile per category)…[/]")
-        # compute avg score per (category, model)
+        console.print(f"[bold]judging (pairwise, top quartile per category) — parallelism={judge_parallelism}…[/]")
         by_cat_model: dict[tuple[str, str], list[int]] = defaultdict(list)
         for row in d.execute("SELECT r.category, r.model, s.score FROM runs r JOIN scores s ON s.run_id=r.id WHERE r.sweep_id=?", [sweep_id]):
             by_cat_model[(row[0], row[1])].append(row[2])
         categories = {c for c, _ in by_cat_model}
+        pair_jobs = []
         for cat in categories:
             ranked = sorted(
                 [(m, sum(v)/len(v)) for (c, m), v in by_cat_model.items() if c == cat],
@@ -263,24 +312,39 @@ def run_sweep(
             for t in cat_tasks:
                 for i in range(len(top_models)):
                     for j in range(i + 1, len(top_models)):
-                        ma, mb = top_models[i], top_models[j]
-                        ra = d["runs"].get(run_ids_by_task_model[(t.id, ma)])
-                        rb = d["runs"].get(run_ids_by_task_model[(t.id, mb)])
-                        if not ra["response"].strip() or not rb["response"].strip():
-                            continue
-                        try:
-                            v = judge.pairwise(t, ra["response"], rb["response"], model=judge_pair)
-                            d["pairwise"].insert({
-                                "sweep_id": sweep_id,
-                                "task_id": t.id,
-                                "model_a": ma,
-                                "model_b": mb,
-                                "winner": v.winner,
-                                "judge_model": judge_pair,
-                                "reasoning": v.reasoning,
-                            })
-                        except Exception as e:
-                            console.print(f"[red]pairwise error {ma} vs {mb} on {t.id}: {e}[/]")
+                        pair_jobs.append((t, top_models[i], top_models[j]))
+
+        def _pair_one(t, ma, mb):
+            ra = d["runs"].get(run_ids_by_task_model[(t.id, ma)])
+            rb = d["runs"].get(run_ids_by_task_model[(t.id, mb)])
+            if not ra["response"].strip() or not rb["response"].strip():
+                return None
+            try:
+                v = judge.pairwise(t, ra["response"], rb["response"], model=judge_pair)
+                return {
+                    "sweep_id": sweep_id,
+                    "task_id": t.id,
+                    "model_a": ma,
+                    "model_b": mb,
+                    "winner": v.winner,
+                    "judge_model": judge_pair,
+                    "reasoning": v.reasoning,
+                }
+            except Exception as e:
+                console.print(f"[red]pairwise error {ma} vs {mb} on {t.id}: {e}[/]")
+                return None
+
+        if pair_jobs:
+            with Progress(console=console) as prog:
+                pt = prog.add_task("pairwise", total=len(pair_jobs))
+                with ThreadPoolExecutor(max_workers=judge_parallelism) as pool:
+                    futures = [pool.submit(_pair_one, t, a, b) for t, a, b in pair_jobs]
+                    for fut in as_completed(futures):
+                        row = fut.result()
+                        if row:
+                            with db_lock:
+                                d["pairwise"].insert(row)
+                        prog.advance(pt)
 
     d["sweeps"].update(sweep_id, {"finished_at": dt.datetime.now().isoformat()})
     console.print(f"[bold green]done:[/] sweep {sweep_id}")

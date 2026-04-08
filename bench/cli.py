@@ -40,6 +40,8 @@ def run(
     category: str = typer.Option(None),
     smoke: bool = typer.Option(False),
     no_pairwise: bool = typer.Option(False),
+    judge_parallelism: int = typer.Option(6, help="parallel judge CLI calls"),
+    resume: str = typer.Option(None, help="resume a previously-killed sweep by ID"),
 ):
     """Run a sweep."""
     model_filter = [m.strip() for m in models.split(",")] if models else None
@@ -48,6 +50,8 @@ def run(
         category_filter=category,
         smoke=smoke,
         do_pairwise=not no_pairwise,
+        judge_parallelism=judge_parallelism,
+        resume=resume,
     )
     path = gen_report(sid)
     console.print(f"[green]report:[/] {path}")
