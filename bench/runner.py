@@ -19,6 +19,32 @@ from .tasks_loader import load_all
 console = Console()
 
 
+# Timeout multipliers per size bucket. Large slow models need way more time
+# than the task YAML defaults (which are tuned for small fast models).
+BUCKET_TIMEOUT_MULT: dict[str, float] = {
+    "<1B": 1.0,
+    "<3B": 1.0,
+    "<7B": 1.2,
+    "<10B": 1.5,
+    "<15B": 2.0,
+    "<25B": 3.5,
+    "<35B": 5.0,
+    ">=35B": 6.0,
+}
+MIN_TIMEOUT_S: dict[str, int] = {
+    "<15B": 240,
+    "<25B": 480,
+    "<35B": 720,   # 30B @ 4 tok/s × 500 tok ≈ 125s + TTFT + headroom
+    ">=35B": 900,
+}
+
+
+def _scaled_timeout(task_timeout: int, bucket: str) -> int:
+    mult = BUCKET_TIMEOUT_MULT.get(bucket, 1.0)
+    scaled = int(task_timeout * mult)
+    return max(scaled, MIN_TIMEOUT_S.get(bucket, 0))
+
+
 def _size_from_ollama(info: dict) -> float:
     details = info.get("details") or {}
     ps = details.get("parameter_size") or ""
@@ -154,8 +180,9 @@ def run_sweep(
         for m in models:
             ollama.warmup(m.name)
             for t in tasks:
+                timeout = _scaled_timeout(t.timeout_s, m.bucket)
                 with RSSSampler() as s:
-                    res = ollama.generate(m.name, t.prompt, system=t.system, timeout_s=t.timeout_s)
+                    res = ollama.generate(m.name, t.prompt, system=t.system, timeout_s=timeout)
                 row = {
                     "sweep_id": sweep_id,
                     "model": m.name,
