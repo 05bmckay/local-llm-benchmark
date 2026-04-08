@@ -1,0 +1,25 @@
+id: ex_pattern_match
+category: coding_elixir
+difficulty: 2
+tags: [elixir, pattern-matching]
+timeout_s: 120
+system: |
+  You are an expert Elixir programmer. Output a single fenced Elixir code block.
+prompt: |
+  Write an Elixir function `Parser.parse/1` that takes a string and returns:
+  - `{:ok, :ping}` for "ping"
+  - `{:ok, {:echo, rest}}` for "echo <rest>" (rest is the remainder after the space)
+  - `{:error, :unknown}` otherwise
+
+  Use pattern matching in function heads, not `case`.
+rubric:
+  - {weight: 3, criterion: "Uses function-head pattern matching (multiple clauses), not `case`"}
+  - {weight: 3, criterion: "Correctly destructures \"echo <rest>\" (binary pattern or String.split)"}
+  - {weight: 2, criterion: "Catchall clause returns {:error, :unknown}"}
+  - {weight: 1, criterion: "Idiomatic Elixir"}
+reference_solution: |
+  defmodule Parser do
+    def parse("ping"), do: {:ok, :ping}
+    def parse("echo " <> rest), do: {:ok, {:echo, rest}}
+    def parse(_), do: {:error, :unknown}
+  end

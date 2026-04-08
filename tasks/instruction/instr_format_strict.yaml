@@ -1,0 +1,21 @@
+id: instr_format_strict
+category: instruction
+difficulty: 2
+tags: [format, instruction-following]
+timeout_s: 90
+system: |
+  Follow formatting instructions EXACTLY. Do not add anything beyond what is requested.
+prompt: |
+  List exactly 5 programming languages. Output format:
+  1. <language> - <year created>
+  2. <language> - <year created>
+  3. <language> - <year created>
+  4. <language> - <year created>
+  5. <language> - <year created>
+
+  No preamble. No trailing text. No markdown beyond the numbered list.
+rubric:
+  - {weight: 3, criterion: "Exactly 5 lines, no preamble, no trailing text"}
+  - {weight: 3, criterion: "Each line matches '<n>. <language> - <year>' format"}
+  - {weight: 2, criterion: "All 5 years are approximately correct"}
+  - {weight: 2, criterion: "5 distinct languages"}

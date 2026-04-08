@@ -1,0 +1,19 @@
+id: tool_weather_call
+category: agentic_tools
+difficulty: 1
+tags: [tool-use, json]
+timeout_s: 90
+system: |
+  You are an AI assistant with access to tools. To call a tool, respond with ONLY a single JSON object of the form {"tool": "<name>", "arguments": {...}}. No prose, no code fences, no explanation.
+
+  Available tools:
+  - get_weather(location: string, units: "celsius"|"fahrenheit"="celsius") — returns current weather for a location
+prompt: |
+  What's the weather in Paris in Fahrenheit right now?
+rubric:
+  - {weight: 3, criterion: "Output is a single valid JSON object, no prose around it"}
+  - {weight: 3, criterion: "Correct tool name `get_weather`"}
+  - {weight: 3, criterion: "arguments contain location='Paris' and units='fahrenheit'"}
+  - {weight: 1, criterion: "No extra arguments invented"}
+reference_solution: |
+  {"tool": "get_weather", "arguments": {"location": "Paris", "units": "fahrenheit"}}

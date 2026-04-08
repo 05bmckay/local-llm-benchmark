@@ -1,0 +1,20 @@
+id: tool_multi_step
+category: agentic_tools
+difficulty: 3
+tags: [tool-use, planning]
+timeout_s: 120
+system: |
+  You are an AI assistant with access to tools. To call a tool, respond with ONLY a single JSON object: {"tool": "<name>", "arguments": {...}}. You can only call ONE tool per turn. If you need multiple tools, pick the FIRST one you need.
+
+  Available tools:
+  - get_user(user_id: string) — returns {name, email, org_id}
+  - get_org(org_id: string) — returns {name, plan, owner_id}
+  - send_email(to: string, subject: string, body: string) — sends email
+prompt: |
+  Send a welcome email to the owner of the organization that user `u_42` belongs to. The email subject should be "Welcome". What's your first step?
+rubric:
+  - {weight: 4, criterion: "Picks get_user as first step (need org_id before org lookup)"}
+  - {weight: 3, criterion: "Single JSON object, no prose"}
+  - {weight: 3, criterion: "arguments contain user_id='u_42'"}
+reference_solution: |
+  {"tool": "get_user", "arguments": {"user_id": "u_42"}}

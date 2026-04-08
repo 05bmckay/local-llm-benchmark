@@ -1,0 +1,18 @@
+id: ex_genserver
+category: coding_elixir
+difficulty: 4
+tags: [elixir, otp, genserver]
+timeout_s: 180
+system: |
+  You are an expert Elixir/OTP engineer. Output a single fenced Elixir code block.
+prompt: |
+  Write an Elixir `Counter` GenServer module with:
+  - `start_link/1` accepting an initial integer (default 0), named `:counter`
+  - `increment/0`, `decrement/0` — cast, no reply
+  - `value/0` — synchronous call returning current int
+  - proper `init/1`, `handle_cast/2`, `handle_call/3`
+rubric:
+  - {weight: 3, criterion: "Uses `use GenServer` and implements all three callbacks correctly"}
+  - {weight: 3, criterion: "increment/decrement are handle_cast (async); value is handle_call (sync)"}
+  - {weight: 2, criterion: "start_link uses `name: :counter`"}
+  - {weight: 2, criterion: "Default argument via `start_link(initial \\\\ 0)`"}

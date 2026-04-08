@@ -1,0 +1,18 @@
+id: pm_project_breakdown
+category: pm
+difficulty: 3
+tags: [planning, decomposition]
+timeout_s: 180
+system: |
+  You are a senior PM. Be concrete, not generic.
+prompt: |
+  Break down this initiative into a work plan: "Ship email/password authentication to our web app that currently only has Google OAuth." Output:
+  1. Assumptions (3-5 bullets)
+  2. Work breakdown — phases with concrete tasks (not generic 'design/build/test')
+  3. Top 3 risks with mitigations
+rubric:
+  - {weight: 3, criterion: "Assumptions are concrete and relevant (e.g., password hashing, reset flow, existing user migration)"}
+  - {weight: 4, criterion: "Work breakdown names specific tasks: signup form, password hashing, reset email, email verification, account linking with existing Google accounts, etc."}
+  - {weight: 2, criterion: "Risks are specific (account takeover via linking, password reset phishing, etc.), not generic"}
+  - {weight: 1, criterion: "All three sections present"}
+pairwise_eligible: true

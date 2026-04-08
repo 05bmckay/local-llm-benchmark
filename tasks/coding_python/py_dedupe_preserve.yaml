@@ -1,0 +1,23 @@
+id: py_dedupe_preserve
+category: coding_python
+difficulty: 1
+tags: [python, stdlib]
+timeout_s: 90
+system: |
+  You are an expert Python programmer. Output ONLY a single fenced code block.
+prompt: |
+  Write a Python function `dedupe(items)` that returns a list with duplicates removed, preserving first-seen order. Works on any hashable items. No imports.
+rubric:
+  - {weight: 3, criterion: "Preserves insertion order correctly"}
+  - {weight: 2, criterion: "O(n) using a set for seen"}
+  - {weight: 1, criterion: "No imports, no external deps"}
+  - {weight: 1, criterion: "Code-only output as requested"}
+reference_solution: |
+  def dedupe(items):
+      seen = set()
+      out = []
+      for x in items:
+          if x not in seen:
+              seen.add(x)
+              out.append(x)
+      return out

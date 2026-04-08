@@ -1,0 +1,24 @@
+id: reason_code_trace
+category: reasoning
+difficulty: 3
+tags: [code-trace, python]
+timeout_s: 150
+system: |
+  Trace carefully. End with "Answer: <value>".
+prompt: |
+  What does this Python code print?
+
+  ```python
+  def f(x, acc=[]):
+      acc.append(x)
+      return acc
+
+  print(f(1))
+  print(f(2))
+  print(f(3, []))
+  print(f(4))
+  ```
+rubric:
+  - {weight: 5, criterion: "Correctly identifies mutable default argument gotcha"}
+  - {weight: 4, criterion: "Outputs all four lines correctly: [1] / [1,2] / [3] / [1,2,4]"}
+  - {weight: 1, criterion: "Answer: line present"}

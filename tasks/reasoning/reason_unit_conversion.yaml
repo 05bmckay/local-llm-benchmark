@@ -1,0 +1,13 @@
+id: reason_unit_conversion
+category: reasoning
+difficulty: 1
+tags: [math, units]
+timeout_s: 90
+system: |
+  Think step by step. End with "Answer: <number> <unit>".
+prompt: |
+  A water tank holds 500 gallons. A pump fills it at 2 liters per second. How many minutes to fill the tank? (1 gallon ≈ 3.785 liters.)
+rubric:
+  - {weight: 4, criterion: "Correctly converts 500 gal → ~1892.5 L"}
+  - {weight: 4, criterion: "Final answer ≈ 15.77 minutes (±0.2 min)"}
+  - {weight: 2, criterion: "Answer: line present with units"}

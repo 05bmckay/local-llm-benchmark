@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+results/bench.sqlite
+results/bench.sqlite-*
+results/reports/*.html
+.env
+uv.lock

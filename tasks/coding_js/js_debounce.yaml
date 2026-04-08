@@ -1,0 +1,29 @@
+id: js_debounce
+category: coding_js
+difficulty: 2
+tags: [javascript, async]
+timeout_s: 120
+system: |
+  You are an expert programmer. Output ONLY a single fenced code block. No prose.
+prompt: |
+  Write a JavaScript `debounce(fn, wait)` that returns a debounced version of `fn`. It must:
+  - delay invocation until `wait` ms have passed since the last call
+  - preserve `this` and arguments
+  - expose a `.cancel()` method on the returned function
+
+  Output only the function.
+rubric:
+  - {weight: 3, criterion: "Correct trailing-edge debounce behavior"}
+  - {weight: 2, criterion: "Preserves `this` via apply/call, not arrow function trap"}
+  - {weight: 2, criterion: ".cancel() clears pending timer"}
+  - {weight: 1, criterion: "Output is code-only as requested"}
+reference_solution: |
+  function debounce(fn, wait) {
+    let t;
+    function debounced(...args) {
+      clearTimeout(t);
+      t = setTimeout(() => fn.apply(this, args), wait);
+    }
+    debounced.cancel = () => clearTimeout(t);
+    return debounced;
+  }

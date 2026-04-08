@@ -1,0 +1,19 @@
+id: reason_logic_grid
+category: reasoning
+difficulty: 3
+tags: [logic]
+timeout_s: 240
+system: |
+  Think step by step. End with a final line: "Answer: <name>"
+prompt: |
+  Three friends — Alice, Bob, Carol — each own a different pet (cat, dog, fish) and live in a different colored house (red, blue, green).
+  - Alice does not live in the red house.
+  - The dog owner lives in the blue house.
+  - Bob owns the fish.
+  - Carol does not live in the blue house.
+
+  Who owns the cat?
+rubric:
+  - {weight: 6, criterion: "Correct answer: Carol owns the cat (Bob=fish, so Carol has cat or dog; Carol not blue → not dog → cat; Alice has dog/blue)"}
+  - {weight: 3, criterion: "Reasoning is coherent and uses the constraints correctly"}
+  - {weight: 1, criterion: "Answer: line is present"}

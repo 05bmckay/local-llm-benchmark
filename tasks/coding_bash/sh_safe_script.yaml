@@ -1,0 +1,17 @@
+id: sh_safe_script
+category: coding_bash
+difficulty: 3
+tags: [bash, scripting]
+timeout_s: 120
+system: |
+  Output ONLY a single fenced bash code block.
+prompt: |
+  Write a bash script that takes one argument (a directory) and, for every `.log` file directly inside it (not recursive), gzips it in place and renames to `.log.gz`, skipping any already-gzipped files. The script must:
+  - use `set -euo pipefail`
+  - exit 1 with a usage message if the arg is missing or not a directory
+  - correctly handle filenames containing spaces
+rubric:
+  - {weight: 3, criterion: "set -euo pipefail at top"}
+  - {weight: 3, criterion: "Correctly handles spaces in filenames (quoted vars, not word-splitting)"}
+  - {weight: 2, criterion: "Usage check + exit 1 if arg missing/invalid"}
+  - {weight: 2, criterion: "Skips files already ending in .gz"}

@@ -1,0 +1,31 @@
+id: js_react_hook_loop
+category: coding_js
+difficulty: 2
+tags: [react, hooks, debugging]
+timeout_s: 120
+system: |
+  You are an expert programmer. Answer concisely with code in a single fenced block followed by a 1-2 sentence explanation.
+prompt: |
+  This React component re-renders infinitely. Fix it and briefly explain why.
+
+  ```jsx
+  function UserProfile({ userId }) {
+    const [user, setUser] = useState(null);
+    const [opts, setOpts] = useState({ expand: true });
+
+    useEffect(() => {
+      fetch(`/api/users/${userId}`, { method: 'POST', body: JSON.stringify(opts) })
+        .then(r => r.json())
+        .then(setUser);
+    }, [userId, opts]);
+
+    return <div>{user?.name}</div>;
+  }
+  ```
+rubric:
+  - {weight: 3, criterion: "Identifies that `opts` is a new object each render, retriggering the effect"}
+  - {weight: 3, criterion: "Fix removes the loop (useMemo, move outside, or useRef)"}
+  - {weight: 2, criterion: "Explanation is accurate and ≤2 sentences"}
+  - {weight: 2, criterion: "No unrequested refactors"}
+reference_solution: |
+  The `opts` object is recreated on every render, so the effect's dependency array sees a new reference each time and refires indefinitely. Move it out of the component, wrap in `useMemo`, or inline it.

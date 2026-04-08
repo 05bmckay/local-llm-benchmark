@@ -1,0 +1,14 @@
+id: sh_curl_jq
+category: coding_bash
+difficulty: 2
+tags: [bash, curl, jq]
+timeout_s: 90
+system: |
+  Output ONLY a single fenced bash code block.
+prompt: |
+  Write a bash command that POSTs JSON `{"query": "hello"}` to `https://api.example.com/search` with header `Authorization: Bearer $TOKEN`, parses the response JSON, and prints only the `.results[].title` field, one per line. Fail with a nonzero exit code if the HTTP status is not 2xx.
+rubric:
+  - {weight: 3, criterion: "Uses curl --fail (or explicit status check) to error on non-2xx"}
+  - {weight: 3, criterion: "Correct JSON body and auth header"}
+  - {weight: 2, criterion: "Uses jq -r '.results[].title'"}
+  - {weight: 1, criterion: "Uses $TOKEN env var, not hardcoded"}

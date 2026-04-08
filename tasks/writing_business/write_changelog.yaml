@@ -1,0 +1,21 @@
+id: write_changelog
+category: writing_business
+difficulty: 2
+tags: [changelog, docs]
+timeout_s: 120
+system: |
+  You write developer-facing release notes. Clear, factual, scannable.
+prompt: |
+  Convert this raw engineer dump into a public changelog entry in markdown, grouped under "Added", "Fixed", "Changed". Keep each bullet short (≤15 words), user-facing language (no internal jargon).
+
+  Raw:
+  - landed the new websocket reconnect logic finally, fixes the dropped-tabs issue
+  - migrated billing backend from stripe v1 to v2 api, shouldn't be user-visible mostly but invoice PDFs now have proper line items
+  - dark mode on settings page
+  - fix: the CSV export was silently dropping rows with commas in quoted strings
+  - added webhook retry with exponential backoff (max 5 tries, 1h cap)
+rubric:
+  - {weight: 3, criterion: "Correctly groups items under Added/Fixed/Changed"}
+  - {weight: 3, criterion: "Translates internal language to user-facing terms"}
+  - {weight: 2, criterion: "Bullets ≤15 words"}
+  - {weight: 2, criterion: "Markdown formatting is clean"}

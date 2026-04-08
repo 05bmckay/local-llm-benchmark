@@ -1,0 +1,15 @@
+id: write_cold_email
+category: writing_business
+difficulty: 2
+tags: [email, b2b]
+timeout_s: 120
+system: |
+  You are a concise business writer. No preamble, no sign-off commentary.
+prompt: |
+  Write a 120-word cold outreach email from a founder of a small observability startup to a mid-market SaaS engineering director. The ask is a 20-minute intro call. The hook is that their public status page had three incidents last month. Be direct, not salesy. Subject line included.
+rubric:
+  - {weight: 3, criterion: "Subject line present and specific (not generic)"}
+  - {weight: 3, criterion: "Body is ~100-140 words, direct, not salesy"}
+  - {weight: 2, criterion: "References the incident hook concretely"}
+  - {weight: 2, criterion: "Clear CTA for a 20-min call"}
+pairwise_eligible: true

@@ -1,0 +1,17 @@
+id: py_retry_decorator
+category: coding_python
+difficulty: 3
+tags: [python, decorators, async]
+timeout_s: 150
+system: |
+  You are an expert Python programmer. Output a single fenced code block followed by one sentence on caveats.
+prompt: |
+  Write a Python decorator `retry(attempts=3, backoff=0.5, exceptions=(Exception,))` that retries the wrapped function on failure with exponential backoff (0.5s, 1s, 2s, …). It should:
+  - work on both sync and async functions
+  - re-raise the last exception if all attempts fail
+  - not catch exceptions not in `exceptions`
+rubric:
+  - {weight: 3, criterion: "Handles both sync and async via inspect.iscoroutinefunction"}
+  - {weight: 3, criterion: "Correct exponential backoff (doubling)"}
+  - {weight: 2, criterion: "Only catches specified exception classes"}
+  - {weight: 2, criterion: "Re-raises last exception after final attempt"}

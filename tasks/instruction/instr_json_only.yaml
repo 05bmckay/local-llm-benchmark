@@ -1,0 +1,14 @@
+id: instr_json_only
+category: instruction
+difficulty: 2
+tags: [json, format]
+timeout_s: 90
+system: |
+  Respond with ONLY valid JSON. No code fences. No prose.
+prompt: |
+  Return a JSON object representing a fictional book with fields: title (string), author (string), year (integer), genres (array of strings, 2-4 items), in_print (boolean).
+rubric:
+  - {weight: 4, criterion: "Output parses as valid JSON with no surrounding text or fences"}
+  - {weight: 3, criterion: "All 5 fields present with correct types"}
+  - {weight: 2, criterion: "genres has 2-4 items"}
+  - {weight: 1, criterion: "Values are plausible"}

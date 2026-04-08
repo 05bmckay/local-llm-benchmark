@@ -1,0 +1,15 @@
+id: reason_word_problem
+category: reasoning
+difficulty: 2
+tags: [math, word-problem]
+timeout_s: 180
+system: |
+  Think step by step. End with a final line: "Answer: <number>"
+prompt: |
+  A train leaves Station A at 9:00 AM traveling at 60 mph toward Station B, 210 miles away. At 9:30 AM, a second train leaves Station B traveling at 75 mph toward Station A on the same track. At what time (to the nearest minute) do they meet?
+rubric:
+  - {weight: 4, criterion: "Correctly accounts for the 30-minute head start (first train travels 30 miles before second starts)"}
+  - {weight: 4, criterion: "Final answer is approximately 10:53 AM (±2 minutes)"}
+  - {weight: 2, criterion: "Answer: line is present and matches requested format"}
+reference_solution: |
+  By 9:30, train 1 has covered 30 mi, leaving 180 mi between them. Closing speed 135 mph, so 180/135 = 1.333 hr ≈ 1h20m. They meet at 10:50 AM (rounded).

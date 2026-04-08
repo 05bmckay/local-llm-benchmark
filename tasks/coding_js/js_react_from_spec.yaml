@@ -1,0 +1,20 @@
+id: js_react_from_spec
+category: coding_js
+difficulty: 3
+tags: [react, hooks, spec]
+timeout_s: 180
+system: |
+  You are an expert React engineer. Output a single fenced code block, then one short sentence about tradeoffs.
+prompt: |
+  Write a React hook `useLocalStorage(key, initialValue)` that:
+  - reads the initial value from localStorage (falling back to `initialValue` if absent or if parsing fails)
+  - returns `[value, setValue]` like useState
+  - writes to localStorage on every set, serialized as JSON
+  - handles SSR (no `window`) gracefully
+  - listens to the `storage` event so other tabs stay in sync
+rubric:
+  - {weight: 3, criterion: "Correctly hydrates from localStorage with JSON.parse try/catch"}
+  - {weight: 3, criterion: "SSR-safe (checks typeof window)"}
+  - {weight: 2, criterion: "Cross-tab sync via storage event with cleanup"}
+  - {weight: 2, criterion: "API matches useState shape"}
+pairwise_eligible: true

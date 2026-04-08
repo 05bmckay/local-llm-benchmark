@@ -1,0 +1,19 @@
+id: tool_no_tool_needed
+category: agentic_tools
+difficulty: 2
+tags: [tool-use, abstention]
+timeout_s: 90
+system: |
+  You are an AI assistant with access to tools. To call a tool, respond with ONLY a single JSON object of the form {"tool": "<name>", "arguments": {...}}. If no tool is needed, respond in plain text (no JSON).
+
+  Available tools:
+  - search_web(query: string) — search the web
+  - get_weather(location: string) — current weather
+prompt: |
+  What is 27 times 14? Just give me the number.
+rubric:
+  - {weight: 4, criterion: "Does NOT emit a JSON tool call (no tool is needed)"}
+  - {weight: 4, criterion: "Gives the correct answer (378)"}
+  - {weight: 2, criterion: "Response is concise, no verbose reasoning"}
+reference_solution: |
+  378

@@ -1,0 +1,18 @@
+id: tool_schema_strict
+category: agentic_tools
+difficulty: 3
+tags: [tool-use, schema]
+timeout_s: 120
+system: |
+  You are an AI assistant with access to tools. Respond with ONLY a single JSON object matching a tool schema, or plain text if no tool is needed.
+
+  Tool:
+  - create_issue(title: string [required, ≤80 chars], body: string [required], labels: string[] [optional], priority: "low"|"medium"|"high" [required])
+prompt: |
+  File a high-priority bug: the login button on mobile Safari doesn't respond to taps after a failed login attempt. Label it "bug" and "mobile".
+rubric:
+  - {weight: 3, criterion: "Valid single JSON object, tool name create_issue"}
+  - {weight: 3, criterion: "All required fields present (title, body, priority)"}
+  - {weight: 2, criterion: "priority is exactly 'high'"}
+  - {weight: 2, criterion: "labels is an array containing 'bug' and 'mobile'"}
+  - {weight: 1, criterion: "title ≤80 chars and descriptive"}

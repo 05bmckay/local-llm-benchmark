@@ -1,0 +1,14 @@
+id: py_context_manager
+category: coding_python
+difficulty: 2
+tags: [python, context-manager]
+timeout_s: 120
+system: |
+  Output ONLY a single fenced Python code block.
+prompt: |
+  Write a Python context manager `timed(label)` (as a class) that prints `"{label}: {elapsed_ms:.1f}ms"` on exit. Must work with `with timed("task"):` and not suppress exceptions.
+rubric:
+  - {weight: 3, criterion: "Correct __enter__ / __exit__ implementation"}
+  - {weight: 2, criterion: "Uses time.perf_counter for ms precision"}
+  - {weight: 2, criterion: "Does not suppress exceptions (returns None/False from __exit__)"}
+  - {weight: 1, criterion: "Code-only output"}

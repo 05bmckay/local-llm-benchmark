@@ -1,0 +1,14 @@
+id: instr_negative_constraint
+category: instruction
+difficulty: 3
+tags: [negative-constraint]
+timeout_s: 90
+system: |
+  Follow constraints strictly.
+prompt: |
+  Write a short paragraph (3-4 sentences) about the benefits of walking. Do NOT use any word that contains the letter "e".
+rubric:
+  - {weight: 6, criterion: "Zero words contain the letter 'e' (case-insensitive)"}
+  - {weight: 2, criterion: "3-4 sentences"}
+  - {weight: 2, criterion: "Actually about walking and its benefits, coherent"}
+pairwise_eligible: true

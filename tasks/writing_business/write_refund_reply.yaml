@@ -1,0 +1,15 @@
+id: write_refund_reply
+category: writing_business
+difficulty: 2
+tags: [support, tone]
+timeout_s: 120
+system: |
+  You write customer support replies. Professional, warm, never defensive.
+prompt: |
+  A customer emailed angry that they were charged twice for an annual subscription due to a billing system bug. Write a reply (≤100 words) that: apologizes sincerely, confirms the refund is being processed (3-5 business days), and offers a 1-month credit as an apology. Do not make excuses or blame the system vaguely.
+rubric:
+  - {weight: 3, criterion: "Genuine apology, not corporate-speak"}
+  - {weight: 3, criterion: "Concrete refund timeline (3-5 business days)"}
+  - {weight: 2, criterion: "Offers the 1-month credit"}
+  - {weight: 2, criterion: "≤100 words, no blame-shifting"}
+pairwise_eligible: true

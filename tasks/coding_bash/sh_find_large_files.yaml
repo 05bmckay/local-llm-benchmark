@@ -1,0 +1,14 @@
+id: sh_find_large_files
+category: coding_bash
+difficulty: 2
+tags: [bash, find]
+timeout_s: 90
+system: |
+  Output ONLY a single fenced bash code block. No explanation.
+prompt: |
+  Write a one-line bash pipeline (can use `\\` line continuations) that finds the 10 largest regular files under the current directory, printing them as `<size-in-MB> <path>` sorted largest first. Ignore directories named `.git` and `node_modules`.
+rubric:
+  - {weight: 3, criterion: "Uses find with -type f and correct prune for .git and node_modules"}
+  - {weight: 3, criterion: "Sorts by size descending and takes top 10"}
+  - {weight: 2, criterion: "Output format is '<MB> <path>'"}
+  - {weight: 1, criterion: "Code-only as requested"}

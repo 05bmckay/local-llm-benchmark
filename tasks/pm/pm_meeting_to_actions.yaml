@@ -1,0 +1,17 @@
+id: pm_meeting_to_actions
+category: pm
+difficulty: 2
+tags: [summarization, action-items]
+timeout_s: 150
+system: |
+  You are a PM assistant. Output only the requested sections.
+prompt: |
+  Extract action items from these meeting notes. Output in markdown with two sections exactly: `## Decisions` and `## Action items`. Action items must be formatted as `- [ ] <owner>: <action> (by <date or "unspecified">)`.
+
+  Notes:
+  > Sarah kicked off. Main topic: Q2 launch for the billing revamp. Team agreed we need to push the GA date from May 15 to June 1 because QA is still finding issues with proration. Marcus will own the revised migration doc and get a draft to Priya by Friday. Priya agreed to review within 3 days. Deepa raised that the support team needs a runbook before GA — she'll draft it, no date yet. Decision: we are NOT going to offer legacy API support past June 30, customers will be notified 4 weeks out. Action: Sarah to draft the customer comm, send to Marcus for review next Tuesday.
+rubric:
+  - {weight: 3, criterion: "Two sections exactly: Decisions and Action items"}
+  - {weight: 4, criterion: "All action items captured with owner, action, and date (or 'unspecified')"}
+  - {weight: 2, criterion: "Decisions section captures GA date push and legacy API sunset"}
+  - {weight: 1, criterion: "Checkbox formatting '- [ ]' used"}

@@ -1,0 +1,24 @@
+id: py_bug_fix
+category: coding_python
+difficulty: 2
+tags: [python, debugging]
+timeout_s: 120
+system: |
+  You are an expert Python debugger. Output the fixed code in a single fenced block, then one sentence explaining the bug.
+prompt: |
+  This function should return the average of numeric values, ignoring None. It crashes on some inputs. Fix it.
+
+  ```python
+  def avg(values):
+      total = 0
+      count = 0
+      for v in values:
+          total += v
+          count += 1
+      return total / count
+  ```
+rubric:
+  - {weight: 3, criterion: "Handles None values by skipping"}
+  - {weight: 2, criterion: "Handles empty list (ZeroDivisionError) gracefully"}
+  - {weight: 2, criterion: "Explanation correctly identifies root cause(s)"}
+  - {weight: 1, criterion: "Minimal fix, no unrequested refactor"}

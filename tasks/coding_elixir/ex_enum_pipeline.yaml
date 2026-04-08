@@ -1,0 +1,14 @@
+id: ex_enum_pipeline
+category: coding_elixir
+difficulty: 2
+tags: [elixir, enum, pipe]
+timeout_s: 120
+system: |
+  Output ONLY a single fenced Elixir code block.
+prompt: |
+  Write `Stats.top_tags/2` which takes a list of maps like `%{tags: ["a","b"]}` and an integer `n`, and returns the `n` most common tags across all maps, as a list of `{tag, count}` tuples sorted by count descending. Use the `|>` pipe operator.
+rubric:
+  - {weight: 3, criterion: "Uses Enum.flat_map + Enum.frequencies (or reduce) correctly"}
+  - {weight: 3, criterion: "Sorted by count desc and limited to n"}
+  - {weight: 2, criterion: "Uses pipe operator idiomatically"}
+  - {weight: 2, criterion: "Returns list of {tag, count} tuples as specified"}
