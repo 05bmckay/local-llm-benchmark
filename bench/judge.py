@@ -40,13 +40,44 @@ def _extract_json(text: str) -> dict:
     # strip code fences
     m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if m:
-        return json.loads(m.group(1))
-    # find first {...} balanced blob
-    start = text.find("{")
-    end = text.rfind("}")
-    if start >= 0 and end > start:
-        return json.loads(text[start : end + 1])
-    raise ValueError(f"no JSON found in judge output: {text[:200]}")
+        try:
+            return json.loads(m.group(1))
+        except json.JSONDecodeError:
+            pass
+    # walk all {...} blobs by balanced braces and try each
+    i = 0
+    while i < len(text):
+        if text[i] == "{":
+            depth = 0
+            in_str = False
+            esc = False
+            for j in range(i, len(text)):
+                c = text[j]
+                if esc:
+                    esc = False
+                    continue
+                if c == "\\":
+                    esc = True
+                    continue
+                if c == '"':
+                    in_str = not in_str
+                    continue
+                if in_str:
+                    continue
+                if c == "{":
+                    depth += 1
+                elif c == "}":
+                    depth -= 1
+                    if depth == 0:
+                        blob = text[i : j + 1]
+                        try:
+                            return json.loads(blob)
+                        except json.JSONDecodeError:
+                            break
+            i = j + 1
+        else:
+            i += 1
+    raise ValueError(f"no parseable JSON object in: {text[:200]}")
 
 
 def score_absolute(task: Task, response: str, model: str = SONNET) -> JudgeScore:
