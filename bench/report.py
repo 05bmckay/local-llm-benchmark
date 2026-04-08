@@ -17,21 +17,35 @@ def _latest_sweep() -> str | None:
     return rows[0][0] if rows else None
 
 
-def generate(sweep_id: str | None = None) -> Path:
+def generate(sweep_id: str | None = None, judge_model: str | None = None) -> Path:
     d = db()
     sid = sweep_id or _latest_sweep()
     if not sid:
         raise RuntimeError("no sweeps in DB")
     REPORTS.mkdir(parents=True, exist_ok=True)
 
-    rows = list(d.execute(
-        """
-        SELECT r.model, r.bucket, r.category, r.tokens_per_sec, r.ttft_ms, r.peak_rss_mb, s.score
-        FROM runs r JOIN scores s ON s.run_id=r.id
-        WHERE r.sweep_id=?
-        """,
-        [sid],
-    ))
+    # If multiple judge passes exist, pick the one requested — otherwise prefer
+    # the most recent (highest score id) per run.
+    if judge_model:
+        rows = list(d.execute(
+            """
+            SELECT r.model, r.bucket, r.category, r.tokens_per_sec, r.ttft_ms, r.peak_rss_mb, s.score
+            FROM runs r JOIN scores s ON s.run_id=r.id
+            WHERE r.sweep_id=? AND s.judge_model=?
+            """,
+            [sid, judge_model],
+        ))
+    else:
+        rows = list(d.execute(
+            """
+            SELECT r.model, r.bucket, r.category, r.tokens_per_sec, r.ttft_ms, r.peak_rss_mb, s.score
+            FROM runs r JOIN scores s ON s.run_id=r.id
+            WHERE r.sweep_id=? AND s.id = (
+                SELECT MAX(s2.id) FROM scores s2 WHERE s2.run_id=r.id
+            )
+            """,
+            [sid],
+        ))
 
     # aggregate
     by_model: dict[str, dict] = defaultdict(lambda: {"scores": [], "tps": [], "ttft": [], "rss": [], "bucket": "?", "per_cat": defaultdict(list)})

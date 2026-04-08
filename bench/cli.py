@@ -54,10 +54,53 @@ def run(
 
 
 @app.command()
-def report(sweep_id: str = typer.Option(None)):
-    """Regenerate report for a sweep (default: latest)."""
-    path = gen_report(sweep_id)
+def report(
+    sweep_id: str = typer.Option(None),
+    judge: str = typer.Option(None, help="Filter to a specific judge_model pass"),
+):
+    """Regenerate report for a sweep (default: latest, using most recent judge pass)."""
+    path = gen_report(sweep_id, judge_model=judge)
     console.print(f"[green]report:[/] {path}")
+
+
+@app.command()
+def rejudge(
+    sweep_id: str = typer.Option(None, help="Sweep to rejudge (default: latest)"),
+    judge_model: str = typer.Option("claude-sonnet-4-6", help="Claude model to use as judge"),
+    tag: str = typer.Option(None, help="Label for this judge pass"),
+    overwrite: bool = typer.Option(False, help="Re-score even if this judge already scored"),
+):
+    """Re-grade stored model outputs with a different judge. No model re-runs."""
+    from . import runner
+    sid = runner.rejudge(sweep_id=sweep_id, judge_model=judge_model, tag=tag, overwrite=overwrite)
+    path = gen_report(sid, judge_model=judge_model)
+    console.print(f"[green]report:[/] {path}")
+
+
+@app.command()
+def sweeps():
+    """List all sweeps in the DB."""
+    from .db import db as _db
+    d = _db()
+    t = Table(title="Sweeps")
+    t.add_column("ID"); t.add_column("Started"); t.add_column("Finished"); t.add_column("Runs"); t.add_column("Notes")
+    for row in d.execute("SELECT s.id, s.started_at, s.finished_at, COUNT(r.id), s.notes FROM sweeps s LEFT JOIN runs r ON r.sweep_id=s.id GROUP BY s.id ORDER BY s.started_at DESC"):
+        t.add_row(row[0], row[1][:19], (row[2] or "")[:19], str(row[3]), row[4] or "")
+    console.print(t)
+
+
+@app.command()
+def show(run_id: int):
+    """Dump a single run's prompt/response/scores from the DB."""
+    from .db import db as _db
+    d = _db()
+    run = d["runs"].get(run_id)
+    console.print(f"[bold cyan]run {run_id}[/] — {run['model']} on {run['task_id']} ({run['category']})")
+    console.print(f"tok/s: {run['tokens_per_sec']:.1f}  ttft: {run['ttft_ms']}ms  rss: {run['peak_rss_mb']:.0f}MB")
+    console.print("\n[bold]response:[/]\n" + (run['response'] or '(empty)'))
+    console.print("\n[bold]scores:[/]")
+    for s in d.execute("SELECT judge_model, score, reasoning FROM scores WHERE run_id=?", [run_id]):
+        console.print(f"  {s[0]}: {s[1]}/5 — {s[2]}")
 
 
 if __name__ == "__main__":

@@ -57,6 +57,67 @@ def discover_models(filter_names: list[str] | None = None) -> list[registry.Mode
     return models
 
 
+def rejudge(
+    sweep_id: str | None = None,
+    judge_model: str = judge.SONNET,
+    tag: str | None = None,
+    overwrite: bool = False,
+) -> str:
+    """Re-grade stored model outputs with a (possibly different) judge.
+
+    Does NOT re-run any models. Reads responses from `runs` and writes new
+    rows into `scores` tagged with `judge_model`. Use `tag` to label the
+    judge pass (e.g. "opus-review-2026-06") in the reasoning field.
+    """
+    from .tasks_loader import load_all as _load_all
+    d = db()
+    sid = sweep_id
+    if not sid:
+        rows = list(d.execute("SELECT id FROM sweeps ORDER BY started_at DESC LIMIT 1"))
+        if not rows:
+            raise RuntimeError("no sweeps to rejudge")
+        sid = rows[0][0]
+
+    all_tasks = {t.id: t for t in _load_all()}
+    runs = list(d.execute(
+        "SELECT id, task_id, response, error FROM runs WHERE sweep_id=?", [sid]
+    ))
+    console.print(f"[bold]rejudging sweep {sid}[/] with [cyan]{judge_model}[/] — {len(runs)} runs")
+
+    with Progress(console=console) as prog:
+        jt = prog.add_task("rejudge", total=len(runs))
+        for rid, task_id, response, error in runs:
+            if not overwrite:
+                existing = list(d.execute(
+                    "SELECT id FROM scores WHERE run_id=? AND judge_model=?", [rid, judge_model]
+                ))
+                if existing:
+                    prog.advance(jt)
+                    continue
+            task = all_tasks.get(task_id)
+            if task is None:
+                prog.advance(jt); continue
+            if error or not (response or "").strip():
+                d["scores"].insert({"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": f"no output ({tag or ''})".strip(), "judge_model": judge_model})
+                prog.advance(jt); continue
+            try:
+                js = judge.score_absolute(task, response, model=judge_model)
+                reasoning = js.reasoning if not tag else f"[{tag}] {js.reasoning}"
+                d["scores"].insert({
+                    "run_id": rid,
+                    "score": js.score,
+                    "criteria_json": js.model_dump_json(),
+                    "reasoning": reasoning,
+                    "judge_model": judge_model,
+                })
+            except Exception as e:
+                d["scores"].insert({"run_id": rid, "score": 1, "criteria_json": "[]", "reasoning": f"judge error: {e}", "judge_model": judge_model})
+            prog.advance(jt)
+
+    console.print(f"[bold green]rejudge done[/] sweep={sid} judge={judge_model}")
+    return sid
+
+
 def run_sweep(
     model_filter: list[str] | None = None,
     category_filter: str | None = None,
