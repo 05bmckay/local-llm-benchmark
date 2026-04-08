@@ -38,6 +38,19 @@ MIN_TIMEOUT_S: dict[str, int] = {
     ">=35B": 900,
 }
 
+# Time budget to allow for cold model load + prompt processing BEFORE the
+# first token. Does not count against the task generation budget.
+LOAD_BUDGET_S: dict[str, int] = {
+    "<1B": 60,
+    "<3B": 60,
+    "<7B": 120,
+    "<10B": 180,
+    "<15B": 240,
+    "<25B": 420,
+    "<35B": 600,    # 30B cold load can take 60-90s on contended I/O
+    ">=35B": 900,
+}
+
 
 def _scaled_timeout(task_timeout: int, bucket: str) -> int:
     mult = BUCKET_TIMEOUT_MULT.get(bucket, 1.0)
@@ -178,11 +191,15 @@ def run_sweep(
     with Progress(console=console) as prog:
         gen_task = prog.add_task("generate", total=len(models) * len(tasks))
         for m in models:
-            ollama.warmup(m.name)
+            load_budget = LOAD_BUDGET_S.get(m.bucket, 300)
+            ollama.warmup(m.name, load_timeout_s=load_budget + 60)
             for t in tasks:
                 timeout = _scaled_timeout(t.timeout_s, m.bucket)
                 with RSSSampler() as s:
-                    res = ollama.generate(m.name, t.prompt, system=t.system, timeout_s=timeout)
+                    res = ollama.generate(
+                        m.name, t.prompt, system=t.system,
+                        timeout_s=timeout, load_budget_s=load_budget,
+                    )
                 row = {
                     "sweep_id": sweep_id,
                     "model": m.name,
