@@ -30,7 +30,7 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 | 1 | **devstral-small-2** | 1193 | 245-49-85 | <25B |
 | 2 | **qwen3-coder-30b** | 1155 | 230-68-81 | <35B |
 | 3 | phi4-reasoning | 1050 | 187-133-50 | <15B |
-| 4 | gemma4-e4b-q4ks-fast (LM Studio) | 1052 | 173-116-90 | <10B |
+| 4 | gemma4-e4b-q4ks-fast (LM Studio) | 1052 | 173-116-90 | <10B | *tps corrected from 249→~60-115* |
 | 5 | phi4-14b | 1048 | 173-120-86 | <15B |
 | 6 | gemma3:12b-it-qat | 1021 | 158-135-86 | <15B |
 | 7 | gpt-oss-20b | 953 | 148-198-24 | <25B |
@@ -47,7 +47,7 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 | 1 | qwen3-coder-30b | <35B | 4.40 | 41.9 | 6513ms | 36.8 |
 | 2 | phi4-reasoning | <15B | 4.38 | 18.6 | 807ms | 16.3 |
 | 3 | devstral-small-2 | <25B | 4.34 | 14.5 | 1337ms | 12.6 |
-| 4 | gemma4-e4b-q4ks-fast | <10B | 4.29 | 249.1 | 383ms | 213.5 |
+| 4 | gemma4-e4b-q4ks-fast | <10B | 4.29 | ~60-115 | 383ms | ~51-99 |
 | 5 | gemma4-e4b (Ollama) | <10B | 4.11 | 55.9 | 476ms | 46.0 |
 | 6 | phi4-14b | <15B | 4.06 | 24.8 | 705ms | 20.2 |
 | 7 | gpt-oss-20b | <25B | 3.91 | 52.5 | 541ms | 41.1 |
@@ -74,7 +74,7 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 |---|---|---|---|---|
 | <3B | qwen2.5-1.5b | 2.69 | 164.8 | 88.5 |
 | <7B | gemma3n | 3.52 | 46.8 | 33.0 |
-| <10B | gemma4-e4b-q4ks-fast (LM Studio) | 4.29 | 249.1 | **213.5** |
+| <10B | gemma4-e4b-q4ks-fast (LM Studio) | 4.29 | ~60-115 | ~51-99 |
 | <15B | phi4-reasoning | 4.38 | 18.6 | 16.3 |
 | <25B | devstral-small-2 | 4.34 | 14.5 | 12.6 |
 | <35B | qwen3-coder-30b | 4.40 | 41.9 | 36.8 |
@@ -99,7 +99,7 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 
 2. **qwen3-coder-30b is the highest raw quality model** at 4.40 and Elo #2. The arch worked (not qwen35!). Leads coding_python and agentic_tools. At 41.9 tok/s it's usable but not snappy for a 30B.
 
-3. **gemma4-e4b-q4ks-fast (LM Studio) is the composite king** at 213.5 — nearly 6× higher than #2. That's 4.29 quality × 249.1 tok/s. If you want ONE model for daily driving, this is it. The 383ms TTFT makes it feel instant.
+3. **gemma4-e4b-q4ks-fast (LM Studio) is still the composite leader** at ~51-99 (corrected from inflated 213.5 — OpenAI client was counting SSE chunks as tokens). Real-world speed is ~60 tok/s, similar to Ollama's gemma4-e4b (56 tok/s). The quality edge (4.29 vs 4.11) is the real differentiator. The 383ms TTFT makes it feel instant.
 
 4. **The thinking-capture fix reshuffled the entire leaderboard.** Models that benefit from hidden reasoning (gemma4, hermes4) dropped 0.3-0.6 points when the judge could see their messy chains. Models with clean inline reasoning (phi4-reasoning with `<think>` tags) or no reasoning (devstral, qwen3-coder) were unaffected and rose in rankings.
 
@@ -111,7 +111,7 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 
 ### 🎯 Daily-Driver Recommendations (M4 Pro, 24GB)
 
-**Interactive chat / quick tasks**: `gemma4-e4b-q4ks-fast` (LM Studio) — 249 tok/s, 383ms TTFT, 4.29 quality. Feels instant.
+**Interactive chat / quick tasks**: `gemma4-e4b-q4ks-fast` (LM Studio) — ~60 tok/s, 383ms TTFT, 4.29 quality. Fast TTFT makes it feel instant.
 
 **Maximum quality (don't mind 5-sec waits)**: `qwen3-coder-30b` — 4.40 quality, strong across all categories.
 

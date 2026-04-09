@@ -148,17 +148,26 @@ def generate(
         error = f"{type(e).__name__}: {e}"
 
     duration_ms = (time.perf_counter() - start) * 1000
-    if duration_ms > 0 and tokens_out > 0 and gen_start is not None:
+
+    # OpenAI-compatible endpoints don't return eval_count/eval_duration like
+    # Ollama does, so `tokens_out` is a chunk count (unreliable — one chunk can
+    # contain 1 char or 50).  LM Studio *does* return a `usage` object in the
+    # final SSE chunk, but not all servers do.  As a robust fallback, estimate
+    # real token count from character length (~4 chars/token for English).
+    full_text = "".join(text_parts)
+    estimated_tokens = max(len(full_text) // 4, tokens_out)
+
+    if duration_ms > 0 and estimated_tokens > 0 and gen_start is not None:
         gen_ms = (time.perf_counter() - gen_start) * 1000
-        tps = tokens_out / (gen_ms / 1000) if gen_ms > 0 else 0.0
+        tps = estimated_tokens / (gen_ms / 1000) if gen_ms > 0 else 0.0
     else:
         tps = 0.0
 
     return GenResult(
-        text="".join(text_parts),
+        text=full_text,
         ttft_ms=ttft,
         duration_ms=duration_ms,
-        tokens_out=tokens_out,
+        tokens_out=estimated_tokens,
         tokens_per_sec=tps,
         error=error,
     )
