@@ -4,6 +4,62 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 
 ---
 
+## 2026-04-09 PM — Wave 4: REAP models, Granite 4 family, 0xSero deep dive
+
+### 🏆 REAP Gemma 4 21B — new quality champion (4.49)
+
+Tested [0xSero/gemma-4-21b-a4b-it-REAP](https://huggingface.co/0xSero/gemma-4-21b-a4b-it-REAP) via LM Studio (Q4_K_M GGUF from [saria-lh](https://huggingface.co/saria-lh/gemma-4-21b-a4b-it-REAP-Q4_K_M-GGUF)). REAP prunes 25/128 MoE experts from Gemma 4 26B → 21B while keeping 4B active params per token.
+
+**Result: 4.49/5 — highest quality in the entire benchmark, beating qwen3-coder-30b (4.40).** Perfect 5.00 in reasoning and PM. 4.80 agentic_tools. Zero errors. From a model 20% smaller than the base.
+
+### 🔬 IBM Granite 4 family — Mamba-2 hybrids punch above weight
+
+Benched two new Granite 4 variants:
+
+| model | quality | tok/s | size on disk | bucket |
+|---|---|---|---|---|
+| **granite4:3b-h** (micro) | **3.63** | 53.2 | 1.9 GB | <7B quality champion |
+| granite4-h-tiny | 3.51 | 69.9 | 4.3 GB | <7B composite champion |
+| granite4:32b-a9b-h | — | — | 19 GB | **OOM on 24GB** — deferred |
+
+granite4:3b-h scores **3.63 from 1.9 GB on disk** — best quality-per-GB in the entire benchmark. Outscores its bigger 7B sibling (3.51). IBM's Mamba-2 hybrid architecture is remarkably efficient. The 32B small variant caused severe memory pressure (16% CPU spillover) and was abandoned.
+
+### 🧹 Disk + memory cleanup
+
+Freed ~46 GB disk + 14 GB RAM mid-session:
+- Deleted `granite4:32b-a9b-h` (19 GB) — OOM, unusable on 24GB
+- Deleted LM Studio Qwen3.5-35B-A3B base GGUF (21 GB) — accidental download
+- Deleted Flagstone Qwen3.5 REAP coding GGUF (6.1 GB) — never used
+- Unloaded idle LM Studio model (14 GB RAM freed)
+
+### 🔄 In progress: Qwen3.5-28B-A3B-REAP GGUF conversion + bench
+
+Downloading [0xSero/Qwen-3.5-28B-A3B-REAP](https://huggingface.co/0xSero/Qwen-3.5-28B-A3B-REAP) (53 GB bf16, 2 safetensor shards). Overnight script will:
+1. Convert to GGUF f16 via `convert_hf_to_gguf.py`
+2. Quantize to Q4_K_M (~13 GB) via `llama-quantize`
+3. Bench via LM Studio
+4. **Publish to HuggingFace as `05bmckay/Qwen3.5-28B-A3B-REAP-GGUF`** — first GGUF quant of this model
+
+This is the model we're most excited about: 28B MoE with only 3B active params. If REAP quality holds like it did with Gemma (4.49), this could be a speed+quality monster.
+
+### 🔍 0xSero research ([HuggingFace](https://huggingface.co/0xSero) / [GitHub](https://github.com/0xSero) / [X](https://x.com/0xSero))
+
+Discovered REAP (Router-weighted Expert Activation Pruning) — [ICLR 2026 paper](https://arxiv.org/abs/2510.13999). One-shot MoE compression removing 25-50% of experts while maintaining quality. 43 models published on HuggingFace.
+
+**Key tools:**
+- [vLLM Studio](https://github.com/0xSero/vllm-studio) — unified local AI workstation (vLLM/sglang/llama.cpp backends)
+- [TurboQuant](https://github.com/0xSero/turboquant) — KV cache quantization
+- [moe-compress](https://github.com/0xSero/moe-compress) — model-agnostic MoE compression automation
+
+**Watchlist for future benches:** gemma-4-19b-REAP, GLM-4.7-REAP-50, sero-nouscoder-14b-sft-tools, Qwen3.5-122B-A10B-REAP variants (needs 128GB)
+
+### 📊 Updated stats
+- **25 models tested** (added REAP Gemma 21B, granite4:3b-h, granite4-h-tiny, granite4:3b-h)
+- 16+ sweeps, 900+ runs
+- Published report + repo at [github.com/05bmckay/local-llm-benchmark](https://github.com/05bmckay/local-llm-benchmark)
+
+---
+
 ## 2026-04-09 — Final Report: Full Benchmark Results (post thinking-capture fix)
 
 ### 🐛 Critical bug found & fixed: Ollama thinking-channel drop
