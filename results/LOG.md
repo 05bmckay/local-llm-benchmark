@@ -4,6 +4,132 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 
 ---
 
+## 2026-04-09 — Final Report: Full Benchmark Results (post thinking-capture fix)
+
+### 🐛 Critical bug found & fixed: Ollama thinking-channel drop
+
+**Problem**: Our Ollama client (`bench/ollama.py`) only read `message.content` from stream chunks. Models that use a separate `thinking` field (hermes4-14b, gemma4-e4b, gemma4-26b, gpt-oss-20b) were having 60-75% of their output silently discarded. The judge then scored partial/empty responses.
+
+**Impact**: 4 models had artificially wrong scores. gpt-oss-20b had 4 completely empty agentic_tools responses scored as 1/5. hermes4-14b was losing ~75% of output (chars/tok=0.60).
+
+**Fix**: Both `bench/ollama.py` and `bench/openai_client.py` now capture `thinking` + `tool_calls` + `content` from all channels. TTFT now triggers on first token of ANY kind (not just content), fixing inflated latency numbers for reasoning models.
+
+**The "thinking tax"**: Including visible reasoning chains actually LOWERED scores for models that previously benefited from showing only clean conclusions. This is the fair outcome — all models now judged on equal footing.
+
+| model | pre-fix score | post-fix score | delta |
+|---|---|---|---|
+| gemma4-e4b | 4.47 | 4.11 | -0.36 |
+| gemma4-26b | 4.51 | 3.91 | -0.60 |
+| hermes4-14b | 4.48 | 3.84 | -0.64 |
+| gpt-oss-20b | 4.09 | 3.91 | -0.18 |
+
+### 🏆 Global Elo Rankings (cross-size tournament, 2246 pairwise matches)
+
+| rank | model | Elo | W-L-T | bucket |
+|---|---|---|---|---|
+| 1 | **devstral-small-2** | 1193 | 245-49-85 | <25B |
+| 2 | **qwen3-coder-30b** | 1155 | 230-68-81 | <35B |
+| 3 | phi4-reasoning | 1050 | 187-133-50 | <15B |
+| 4 | gemma4-e4b-q4ks-fast (LM Studio) | 1052 | 173-116-90 | <10B |
+| 5 | phi4-14b | 1048 | 173-120-86 | <15B |
+| 6 | gemma3:12b-it-qat | 1021 | 158-135-86 | <15B |
+| 7 | gpt-oss-20b | 953 | 148-198-24 | <25B |
+| 8 | deepseek-r1:14b | 966 | 130-166-74 | <15B |
+| 9 | gemma4-e4b (Ollama) | 911 | 117-213-49 | <10B |
+| 10 | gemma4-26b | 874 | 104-227-19 | <35B |
+| 11 | gemma3n | 903 | 96-201-82 | <7B |
+| 12 | mistral-nemo-12b | 873 | 88-223-68 | <15B |
+
+### 📊 Full Quality Leaderboard (all models, all sweeps)
+
+| rank | model | bucket | quality | tok/s | TTFT | composite |
+|---|---|---|---|---|---|---|
+| 1 | qwen3-coder-30b | <35B | 4.40 | 41.9 | 6513ms | 36.8 |
+| 2 | phi4-reasoning | <15B | 4.38 | 18.6 | 807ms | 16.3 |
+| 3 | devstral-small-2 | <25B | 4.34 | 14.5 | 1337ms | 12.6 |
+| 4 | gemma4-e4b-q4ks-fast | <10B | 4.29 | 249.1 | 383ms | 213.5 |
+| 5 | gemma4-e4b (Ollama) | <10B | 4.11 | 55.9 | 476ms | 46.0 |
+| 6 | phi4-14b | <15B | 4.06 | 24.8 | 705ms | 20.2 |
+| 7 | gpt-oss-20b | <25B | 3.91 | 52.5 | 541ms | 41.1 |
+| 8 | gemma4-26b | <35B | 3.91 | 51.0 | 852ms | 39.8 |
+| 9 | deepseek-r1:14b | <15B | 3.88 | 20.1 | 46309ms | 15.6 |
+| 10 | hermes4-14b | <15B | 3.84 | 24.6 | 778ms | 18.9 |
+| 11 | gemma3:12b-it-qat | <15B | 3.69 | 25.8 | 878ms | 19.0 |
+| 12 | gemma3n | <7B | 3.52 | 46.8 | 672ms | 33.0 |
+| 13 | mistral-nemo-12b | <15B | 3.51 | 30.2 | 544ms | 21.2 |
+| 14 | qwen2.5-coder-3b | <7B | 3.44 | 94.7 | 268ms | 65.1 |
+| 15 | granite3.3:8b | <10B | 3.23 | 39.9 | 490ms | 25.8 |
+| 16 | hermes3-8b | <10B | 3.17 | 47.2 | 452ms | 29.9 |
+| 17 | llama3.2-3b | <7B | 3.12 | 100.7 | 303ms | 62.9 |
+| 18 | phi4-mini-3.8b | <7B | 3.00 | 73.5 | 296ms | 44.1 |
+| 19 | smollm3-3b | <7B | 2.85 | 97.3 | 268ms | 55.5 |
+| 20 | xLAM-2-8b | <10B | 2.83 | 47.3 | 428ms | 26.7 |
+| 21 | qwen2.5-1.5b | <3B | 2.69 | 164.8 | 180ms | 88.5 |
+| 22 | smollm2-1.7b | <3B | 2.34 | 112.0 | 156ms | 52.5 |
+| 23 | deepseek-r1-1.5b | <3B | 1.80 | 157.8 | 3212ms | 56.8 |
+
+### 🏅 Per-Bucket Champions
+
+| bucket | champion | quality | tok/s | composite |
+|---|---|---|---|---|
+| <3B | qwen2.5-1.5b | 2.69 | 164.8 | 88.5 |
+| <7B | gemma3n | 3.52 | 46.8 | 33.0 |
+| <10B | gemma4-e4b-q4ks-fast (LM Studio) | 4.29 | 249.1 | **213.5** |
+| <15B | phi4-reasoning | 4.38 | 18.6 | 16.3 |
+| <25B | devstral-small-2 | 4.34 | 14.5 | 12.6 |
+| <35B | qwen3-coder-30b | 4.40 | 41.9 | 36.8 |
+
+### 🏅 Category Champions (best avg score)
+
+| category | #1 | #2 | #3 |
+|---|---|---|---|
+| **agentic_tools** | qwen3-coder-30b (4.80) | gemma4-e4b-q4ks-fast (4.80) | gemma3n (4.60) |
+| **coding_bash** | phi4-reasoning (4.50) | hermes4-14b (4.50) | qwen3-coder-30b (4.33) |
+| **coding_elixir** | qwen2.5-coder-3b (5.00) | phi4-reasoning (5.00) | hermes4-14b (5.00) |
+| **coding_js** | phi4-reasoning (4.33) | qwen3-coder-30b (4.00) | gemma4-e4b-q4ks-fast (4.00) |
+| **coding_python** | qwen3-coder-30b (4.75) | phi4-reasoning (4.75) | phi4-14b (4.75) |
+| **instruction** | gemma4-e4b-q4ks-fast (5.00) | gemma4-e4b (5.00) | phi4-reasoning (4.00) |
+| **pm** | qwen3-coder-30b (4.50) | gemma4-e4b (4.50) | gemma4-e4b-q4ks-fast (4.00) |
+| **reasoning** | phi4-14b (5.00) | devstral-small-2 (5.00) | qwen3-coder-30b (4.75) |
+| **writing** | gemma4-e4b-q4ks-fast (4.33) | gemma3:12b-it-qat (4.33) | devstral-small-2 (4.33) |
+
+### 💡 Key Findings
+
+1. **devstral-small-2 is the global Elo champion** despite being only #3 in raw quality (4.34). It wins head-to-head matchups more consistently than any other model, especially in reasoning (5.00). Branded as a coder but secretly a generalist killer. Downside: **14.5 tok/s is painfully slow** for interactive use.
+
+2. **qwen3-coder-30b is the highest raw quality model** at 4.40 and Elo #2. The arch worked (not qwen35!). Leads coding_python and agentic_tools. At 41.9 tok/s it's usable but not snappy for a 30B.
+
+3. **gemma4-e4b-q4ks-fast (LM Studio) is the composite king** at 213.5 — nearly 6× higher than #2. That's 4.29 quality × 249.1 tok/s. If you want ONE model for daily driving, this is it. The 383ms TTFT makes it feel instant.
+
+4. **The thinking-capture fix reshuffled the entire leaderboard.** Models that benefit from hidden reasoning (gemma4, hermes4) dropped 0.3-0.6 points when the judge could see their messy chains. Models with clean inline reasoning (phi4-reasoning with `<think>` tags) or no reasoning (devstral, qwen3-coder) were unaffected and rose in rankings.
+
+5. **gpt-oss-20b has a unique `tool_calls` channel** that other models don't use. After the fix it scores 3.91 — respectable but not a leader. Its 4 previously-empty agentic_tools responses now contain real content.
+
+6. **phi4-reasoning is the <15B king** with 4.38 quality, beating phi4-14b (4.06) and hermes4-14b (3.84). The reasoning variant consistently justifies its extra thinking time.
+
+7. **Claude distillations were a total bust** — every Jackrong/moophlo/kwangsuklee variant either failed to load (qwen35 arch) or produced garbage output (broken template). ~49 GB of models deleted. Revisit when Ollama ships newer llama.cpp.
+
+### 🎯 Daily-Driver Recommendations (M4 Pro, 24GB)
+
+**Interactive chat / quick tasks**: `gemma4-e4b-q4ks-fast` (LM Studio) — 249 tok/s, 383ms TTFT, 4.29 quality. Feels instant.
+
+**Maximum quality (don't mind 5-sec waits)**: `qwen3-coder-30b` — 4.40 quality, strong across all categories.
+
+**Coding specifically**: `phi4-reasoning` — 4.75 in Python/Elixir, 4.50 in bash, 4.33 in JS. Slow (18.6 tok/s) but thorough.
+
+**Travel / low-power**: `qwen2.5-1.5b` — 164.8 tok/s, 180ms TTFT, runs on anything. Best composite in <3B by a mile (88.5).
+
+**Background agent / agentic tasks**: `qwen3-coder-30b` or `gemma4-e4b-q4ks-fast` — both score 4.80 on agentic_tools.
+
+### 📐 Benchmark stats
+
+- **23 models tested** across 6 size buckets (<1B to <35B)
+- **16 sweeps**, 862 total runs, 35 tasks per model
+- **9 categories**: agentic_tools, coding (bash/elixir/js/python), instruction, PM, reasoning, writing
+- **5 bucket tournaments** + 1 global cross-size Elo (2246 pairwise matches)
+- **Judge**: Claude Sonnet 4.6 (absolute + pairwise), Claude Opus 4.6 available for tiebreaks
+- **Infrastructure**: LM Studio backend for Ollama-incompatible GGUFs, parallel judging (6-wide ThreadPool), TTFT-aware dual-timeout, resume-capable sweeps, SQLite + Streamlit explorer
+
 ## 2026-04-09 — Wave 2 final + Wave 1C + infrastructure overhaul + Wave 2.5 disaster
 
 ### Wave 2 final results
@@ -345,3 +471,84 @@ Unsloth's Gemma 4 documentation recommends **Q8_0 for E2B and E4B**, Dynamic 4-b
 **Action taken**: pulled `hf.co/unsloth/gemma-4-E4B-it-GGUF:Q8_0` for direct A/B. If Q8 meaningfully outperforms Q4 on the bench, this is a general caveat for ALL Gemma 4 small model usage — the default Ollama tag is wrong.
 
 **Observation from Wave 2 generation phase (pre-judging):** Stock Q4 `gemma4:e4b` outputs ~3x more tokens per task than `gemma3:12b-it-qat` on identical prompts. This could be verbosity, thinking-on-by-default, or quality degradation at Q4. Q8 comparison will clarify.
+
+---
+
+## 2026-04-08 PM — LM Studio backend, Claude-distill bust, big cleanup
+
+### 🏗️ Infrastructure: OpenAI-compatible backend + LM Studio dispatch
+
+Built `bench/openai_client.py` mirroring `bench/ollama.py`'s `GenResult` + `generate/warmup/unload` signatures against `/v1/chat/completions`. Default base URL `http://localhost:1234/v1` (LM Studio), overridable via `$OPENAI_BASE_URL` (also works with `llama-server`, `mlx_lm.server`).
+
+Runner dispatches by prefix: `lmstudio:<model-id>` bypasses Ollama discovery, synthesizes a `ModelInfo` (inferring size from the id, e.g. `e4b`→7.5B), and routes warmup/generate/unload through `openai_client`. Zero changes needed for existing Ollama models.
+
+**Motivation**: Ollama's bundled llama.cpp still predates gemma4 + qwen35 arch PRs. LM Studio ships a recent llama.cpp so GGUFs Ollama can't load work fine there. Setup is fully programmatic via `lms` CLI:
+```
+lms server start
+lms get "<hf-url>" -y --gguf
+lms load <model-id> -y
+bench run --models "lmstudio:<model-id>"
+```
+
+### 🧪 Unsloth Gemma 4 E4B (Q4_K_S) — via LM Studio
+
+First sweep through the new backend. Clean run, 0 errors on 35 tasks. **Overall 4.29** vs Ollama `gemma4:e4b` (Q4_K_M) **4.47** in Wave 2 — Unsloth Q4_K_S slightly *worse* than the default Ollama tag, which matches expectation (Q4_K_S is the smaller quant). Q8 would likely close the gap but the 0.2-point delta on a 1-5 scale is inside judge noise, so not worth chasing.
+
+**Infra milestone**: this proves the OpenAI backend end-to-end (discovery → sweep → judging → report). Any future GGUF Ollama can't load is now a `lms get` + `lms load` + `bench run --models "lmstudio:..."` away.
+
+### 💀 Claude-distill experiment: complete bust
+
+Zero reliably-working Claude-distilled models on this machine. Three failure modes:
+
+**1. `qwen35` arch unsupported in Ollama's bundled llama.cpp (HTTP 500 on load):**
+- `hf.co/Jackrong/Qwen3.5-4B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q4_K_M`
+- `hf.co/Jackrong/Qwen3.5-9B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF:Q4_K_M`
+- `hf.co/Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF:Q4_K_M`
+- `moophlo/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-GGUF` (untested but same base arch)
+
+**2. Loads but outputs garbage:**
+- `kwangsuklee/Qwen3.5-9B-Claude-4.6-Opus-Reasoning-Distilled-GGUF` — spits `A.\nB.\nC.\nD.\n...` multiple-choice letter sequences on half the tasks, runs past timeout on others (3329 tokens of repetition before hitting the cap). Broken chat template / stop-token config in the upload. This is the *only* Claude distill that actually loads and it's unusable.
+
+**3. Gemma base (not a distill, but same class of problem):**
+- `hf.co/unsloth/gemma-4-E4B-it-GGUF:Q6_K/Q8_0` — `gemma4` arch rejected by Ollama. Works fine in LM Studio (see above).
+
+**Takeaway**: The Claude-distill concept is interesting in principle but every variant we've pulled from HuggingFace either uses an arch Ollama can't load or ships a template that produces garbage output. Not a benchmarking problem — a model-packaging problem. Revisit when:
+- Ollama bumps llama.cpp to include the gemma4 + qwen35 arch PRs, OR
+- Someone uploads a Claude distill with a verified-working template and a Mac-compatible arch (llama / qwen2 / mistral base), OR
+- We build an MLX path and try the Unsloth MLX distills directly.
+
+**Models deleted from disk** (~43 GB freed): all 4 Jackrong/moophlo variants above. `kwangsuklee` deferred until the running sweep lets go of it (see below), then will also be deleted.
+
+### 🧹 Database + model cleanup
+
+Big audit + prune. DB had 18 sweeps, many from broken Wave 2.5 attempts with all-errored runs cluttering leaderboards.
+
+**Nuked 8 sweeps entirely** (all-errored or tiny aborted attempts):
+- `20260408-171015-98ae` (8 runs, never finished)
+- `20260408-202252-947c`, `20260408-202643-6434` (tiny aborted attempts)
+- `20260408-202433-cdfc` (gemma4 custom-Modelfile attempt, all 4 errored)
+- `20260408-202752-77d7` (Jackrong disaster, 15/15 errored)
+- `20260408-202828-acdf` (3/3 errored)
+- `20260408-202839-7509` (**Jackrong 4B+9B full sweep, 70/70 errored** — the peak disaster)
+- `20260408-222014-8d21` (gemma Q6_K arch failure, 35/35 errored)
+
+**Partial cleanup in `20260408-194211-385b`** (Wave 2.5 sweep that had *some* valid data mixed with broken models):
+- Dropped all 35 `gemma-4-E4B-it-GGUF:Q8_0` runs (arch failure)
+- Dropped all 35 `Jackrong Qwen3.5-9B-v2` runs (arch failure)
+- Preserved Hermes-4-14B and other valid model runs in that sweep
+
+**Also dropped** 35 `gemma-4-E4B:Q6_K` error rows from the in-flight resume sweep `20260408-211759-4bd1` before restarting it.
+
+**DB state**: 18 sweeps → **10 sweeps**, all with valid data. 652 total runs, all benchmarkable.
+
+### 📚 Reference: LM Studio / `lms` CLI quickstart
+
+For future GGUFs that Ollama can't load (gemma4, qwen35, and whatever comes next):
+```bash
+lms server start                    # one-time per reboot
+lms get "<hf-url-or-model>@<quant>" -y --gguf
+lms load <identifier> -y
+bench run --models "lmstudio:<identifier>"
+```
+
+Server runs on `localhost:1234` by default. Override via `OPENAI_BASE_URL` env var if using `llama-server` or `mlx_lm.server` instead. Runner treats `lmstudio:` prefix as "skip Ollama, use OpenAI client, synthesize size from model id." Everything else in the sweep pipeline (judging, reports, tournaments) works unchanged.

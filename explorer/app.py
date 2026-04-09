@@ -54,6 +54,32 @@ def load_pairwise() -> pd.DataFrame:
     return df
 
 
+@st.cache_data(ttl=10)
+def load_sweep_model_progress() -> pd.DataFrame:
+    con = sqlite3.connect(DB_PATH)
+    q = """
+    SELECT
+      r.sweep_id,
+      r.model,
+      r.bucket,
+      COUNT(r.id) AS generated_runs,
+      SUM(CASE WHEN COALESCE(r.error, '') != '' THEN 1 ELSE 0 END) AS failed_runs,
+      SUM(CASE WHEN s.id IS NOT NULL AND COALESCE(r.error, '') = '' THEN 1 ELSE 0 END) AS scored_runs
+    FROM runs r
+    LEFT JOIN (
+      SELECT MAX(id) AS id, run_id
+      FROM scores
+      GROUP BY run_id
+    ) latest_score ON latest_score.run_id = r.id
+    LEFT JOIN scores s ON s.id = latest_score.id
+    GROUP BY r.sweep_id, r.model, r.bucket
+    ORDER BY r.sweep_id DESC, r.model ASC
+    """
+    df = pd.read_sql(q, con)
+    con.close()
+    return df
+
+
 def bucket_key(b: str) -> int:
     try:
         return BUCKET_ORDER.index(b)
@@ -73,6 +99,21 @@ def parse_criteria_json(value: object) -> dict | list:
     return parsed if isinstance(parsed, (dict, list)) else {}
 
 
+def model_stage(*, finished_at: str, generated_runs: int, max_generated_runs: int) -> str:
+    if finished_at:
+        return "✅ Finished"
+    if generated_runs < max_generated_runs:
+        return "🧠 Generating"
+    if generated_runs > 0:
+        return "⚖️ Judging"
+    return "⏳ Waiting for runs"
+
+
+def progress_label(done: int, total: int, *, estimated: bool = False) -> str:
+    estimate_mark = " (est.)" if estimated else ""
+    return f"{done}/{total}{estimate_mark}"
+
+
 # -------------------- sidebar --------------------
 st.sidebar.title("🎯 ai-benchmarks")
 page = st.sidebar.radio(
@@ -82,6 +123,7 @@ page = st.sidebar.radio(
 
 runs = load_runs()
 sweeps = load_sweeps()
+sweep_model_progress = load_sweep_model_progress()
 
 st.sidebar.caption(f"{len(runs)} runs across {len(sweeps)} sweeps")
 st.sidebar.caption(f"{runs['model'].nunique()} unique models")
@@ -399,6 +441,76 @@ elif page == "Sweeps":
         scored=("score", lambda x: x.notna().sum()),
     ).reset_index().sort_values("sweep_id", ascending=False)
     st.dataframe(by_sweep, hide_index=True, width="stretch")
+
+    st.divider()
+    st.subheader("Model progress within a sweep")
+
+    if sweep_model_progress.empty:
+        st.info("No model progress is available yet.")
+        st.stop()
+
+    sweep_ids = sweeps["id"].tolist() if not sweeps.empty else sorted(sweep_model_progress["sweep_id"].unique(), reverse=True)
+    selected_sweep = st.selectbox("Inspect model progress for sweep", sweep_ids)
+    sweep_progress = sweep_model_progress[sweep_model_progress["sweep_id"] == selected_sweep].copy()
+
+    if sweep_progress.empty:
+        st.info("This sweep does not have any recorded model runs yet.")
+        st.stop()
+
+    sweep_row = sweeps[sweeps["id"] == selected_sweep]
+    finished_at = "" if sweep_row.empty else str(sweep_row.iloc[0]["finished_at"] or "")
+    max_generated_runs = int(sweep_progress["generated_runs"].max())
+    estimated_total = not bool(finished_at)
+
+    st.caption(
+        "Shows generation and judging progress per model. "
+        + (
+            "Because the sweep is still running, generation totals are relative to the furthest-along model so far, and a model may cap below that if it ran against a different task count."
+            if estimated_total
+            else "This sweep is finished, so totals reflect the full task count."
+        )
+    )
+
+    summary_cols = st.columns(4)
+    with summary_cols[0]:
+        st.metric("Models in sweep", int(sweep_progress["model"].nunique()))
+    with summary_cols[1]:
+        st.metric("Most runs generated", max_generated_runs)
+    with summary_cols[2]:
+        st.metric("Runs scored", int(sweep_progress["scored_runs"].sum()))
+    with summary_cols[3]:
+        st.metric("Runs failed", int(sweep_progress["failed_runs"].sum()))
+
+    sweep_progress["stage"] = sweep_progress.apply(
+        lambda row: model_stage(
+            finished_at=finished_at,
+            generated_runs=int(row["generated_runs"]),
+            max_generated_runs=max_generated_runs,
+        ),
+        axis=1,
+    )
+    sweep_progress = sweep_progress.sort_values(["generated_runs", "scored_runs", "model"], ascending=[False, False, True])
+
+    for _, row in sweep_progress.iterrows():
+        generated_runs = int(row["generated_runs"])
+        scored_runs = int(row["scored_runs"])
+        failed_runs = int(row["failed_runs"])
+        generation_ratio = 0.0 if max_generated_runs == 0 else generated_runs / max_generated_runs
+        judging_total = generated_runs
+        judging_ratio = 0.0 if judging_total == 0 else scored_runs / judging_total
+
+        model_col, generation_col, judging_col = st.columns([2, 3, 3])
+        with model_col:
+            st.markdown(f"**`{row['model']}`**")
+            st.caption(f"{row['bucket']} • {row['stage']}")
+            if failed_runs:
+                st.caption(f"⚠️ {failed_runs} failed run{'s' if failed_runs != 1 else ''}")
+        with generation_col:
+            st.caption(f"Generated runs: {progress_label(generated_runs, max_generated_runs, estimated=estimated_total)}")
+            st.progress(generation_ratio)
+        with judging_col:
+            st.caption(f"Scored runs: {progress_label(scored_runs, judging_total)}")
+            st.progress(judging_ratio)
 
 # -------------------- Raw DB --------------------
 elif page == "Raw DB":

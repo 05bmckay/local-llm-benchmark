@@ -117,17 +117,32 @@ def generate(
                     chunk = _json.loads(line)
                 except Exception:
                     continue
-                # /api/chat returns {"message": {"role": "assistant", "content": "..."}, ...}
-                content = ""
+                # /api/chat returns {"message": {"role": "assistant", "content": "...",
+                #                    "thinking": "...", "tool_calls": [...]}, ...}.
+                # Capture ALL three channels — some models (gpt-oss, hermes4, gemma4)
+                # emit reasoning into `thinking` and only summarize in `content`.
+                # Wrapping with tags so the judge can see structure if needed.
                 msg = chunk.get("message") or {}
+                content_part = ""
                 if isinstance(msg, dict):
-                    content = msg.get("content", "") or ""
-                if ttft is None and content:
+                    raw_content = msg.get("content") or ""
+                    raw_thinking = msg.get("thinking") or ""
+                    raw_tools = msg.get("tool_calls")
+                    if raw_thinking:
+                        content_part += raw_thinking
+                    if raw_content:
+                        content_part += raw_content
+                    if raw_tools:
+                        import json as _json2
+                        content_part += "\n[tool_calls] " + _json2.dumps(raw_tools)
+                # TTFT triggers on the FIRST chunk of any visible kind, not just `content`.
+                # Otherwise reasoning models look like they have huge load latency.
+                if ttft is None and content_part:
                     now = time.perf_counter()
                     ttft = (now - start) * 1000
                     gen_start = now
-                if content:
-                    text_parts.append(content)
+                if content_part:
+                    text_parts.append(content_part)
                     tokens_out += 1
                 if chunk.get("done"):
                     eval_count = chunk.get("eval_count", tokens_out)

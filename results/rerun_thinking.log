@@ -1,0 +1,157 @@
+
+=== 00:37:58 WAIT for overnight script (PID 29783) to exit ===
+  overnight script gone
+
+=== 00:45:39 DELETE old broken rows for the 4 affected models (so re-run is clean) ===
+  gpt-oss-20b: deleted 35 runs
+  hermes4-14b: deleted 35 runs
+  gemma4-26b: deleted 35 runs
+  gemma4-e4b: deleted 70 runs
+
+=== 00:45:39 BENCH gemma4-e4b (rerun) ===
+sweep 20260409-004540-f17a — 1 models × 35 tasks = 35 runs
+  • gemma4-e4b:latest                  8.0B  [<10B]  ~6.2GB
+generate ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+judging (absolute) — parallelism=6…
+judge ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+done: sweep 20260409-004540-f17a
+report: /Users/cartermckay/ai-benchmarks/results/reports/20260409-004540-f17a.md
+
+=== 00:52:50 BENCH gpt-oss-20b (rerun) ===
+sweep 20260409-005251-58c9 — 1 models × 35 tasks = 35 runs
+  • gpt-oss-20b:latest                20.9B  [<25B]  ~14.6GB
+generate ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+judging (absolute) — parallelism=6…
+judge ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+done: sweep 20260409-005251-58c9
+report: /Users/cartermckay/ai-benchmarks/results/reports/20260409-005251-58c9.md
+
+=== 01:12:46 BENCH hermes4-14b (rerun) ===
+sweep 20260409-011246-c011 — 1 models × 35 tasks = 35 runs
+  • hermes4-14b:latest                14.8B  [<15B]  ~10.6GB
+generate ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+judging (absolute) — parallelism=6…
+judge ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+done: sweep 20260409-011246-c011
+report: /Users/cartermckay/ai-benchmarks/results/reports/20260409-011246-c011.md
+
+=== 01:54:39 BENCH gemma4-26b (rerun) ===
+sweep 20260409-015439-c96d — 1 models × 35 tasks = 35 runs
+  • gemma4-26b:latest                 25.8B  [<35B]  ~17.8GB
+generate ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+judging (absolute) — parallelism=6…
+judge ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+done: sweep 20260409-015439-c96d
+report: /Users/cartermckay/ai-benchmarks/results/reports/20260409-015439-c96d.md
+
+=== 02:45:52 TOURNAMENT <10B (refresh — gemma4-e4b changed) ===
+tournament trn-20260409-024553-7f17
+  mode: round_robin  •  bucket: <10B  •  category: any  •  top_n: 6
+
+Seeded candidates:
+   1. gemma4-e4b-q4ks-fast                     quality=4.29  (n=35)
+   2. gemma4-e4b:latest                        quality=4.11  (n=35)
+   3. granite3.3:8b                            quality=3.23  (n=35)
+   4. hermes3-8b                               quality=3.17  (n=35)
+   5. hf.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf:Q4_K_M quality=2.83  (n=35)
+
+shared tasks: 35
+total matches to judge: 350
+tournament ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+
+🏆 Tournament standings
+rank model                                       Elo    W-L  -T    base_quality
+1    gemma4-e4b-q4ks-fast                       1155   91-21 -28   4.29
+2    gemma4-e4b:latest                          1022   67-56 -17   4.11
+3    granite3.3:8b                               963   44-61 -35   3.23
+4    hermes3-8b                                  963   46-63 -31   3.17
+5    hf.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf:Q4_K_M    898   35-82 -23   2.83
+
+tournament done — 350 matches, id: trn-20260409-024553-7f17
+
+=== 02:52:01 TOURNAMENT <15B (refresh — hermes4-14b changed) ===
+tournament trn-20260409-025201-4b66
+  mode: round_robin  •  bucket: <15B  •  category: any  •  top_n: 6
+
+Seeded candidates:
+   1. phi4-reasoning                           quality=4.29  (n=35)
+   2. phi4-14b                                 quality=4.06  (n=35)
+   3. deepseek-r1:14b                          quality=3.80  (n=35)
+   4. gemma3:12b-it-qat                        quality=3.69  (n=35)
+   5. mistral-nemo-12b:latest                  quality=3.51  (n=35)
+   6. hermes4-14b:latest                       quality=3.51  (n=35)
+
+shared tasks: 35
+total matches to judge: 525
+tournament ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+
+🏆 Tournament standings
+rank model                                       Elo    W-L  -T    base_quality
+1    phi4-reasoning                             1092   94-46 -26   4.29
+2    phi4-14b                                   1060   82-50 -37   4.06
+3    gemma3:12b-it-qat                          1045   81-57 -31   3.69
+4    deepseek-r1:14b                             996   64-68 -34   3.80
+5    mistral-nemo-12b:latest                     928   49-90 -30   3.51
+6    hermes4-14b:latest                          879   44-103-6    3.51
+
+tournament done — 496 matches, id: trn-20260409-025201-4b66
+
+=== 03:01:09 TOURNAMENT <35B (refresh — gemma4-26b changed) ===
+tournament trn-20260409-030109-9b8a
+  mode: round_robin  •  bucket: <35B  •  category: any  •  top_n: 6
+
+Seeded candidates:
+   1. qwen3-coder-30b:latest                   quality=4.40  (n=35)
+   2. gemma4-26b:latest                        quality=3.66  (n=35)
+
+shared tasks: 35
+total matches to judge: 35
+tournament ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+
+🏆 Tournament standings
+rank model                                       Elo    W-L  -T    base_quality
+1    qwen3-coder-30b:latest                     1182   28-3  -1    4.40
+2    gemma4-26b:latest                           818    3-28 -1    3.66
+
+tournament done — 32 matches, id: trn-20260409-030109-9b8a
+
+=== 03:01:57 TOURNAMENT GLOBAL refresh ===
+tournament trn-20260409-030158-4a8b
+  mode: round_robin  •  bucket: any  •  category: any  •  top_n: 12
+
+Seeded candidates:
+   1. qwen3-coder-30b:latest                   quality=4.40  (n=35)
+   2. devstral-small-2                         quality=4.34  (n=35)
+   3. phi4-reasoning                           quality=4.29  (n=35)
+   4. gemma4-e4b-q4ks-fast                     quality=4.29  (n=35)
+   5. gemma4-e4b:latest                        quality=4.11  (n=35)
+   6. phi4-14b                                 quality=4.06  (n=35)
+   7. gpt-oss-20b:latest                       quality=3.83  (n=35)
+   8. deepseek-r1:14b                          quality=3.80  (n=35)
+   9. gemma3:12b-it-qat                        quality=3.69  (n=35)
+  10. gemma4-26b:latest                        quality=3.66  (n=35)
+  11. gemma3n                                  quality=3.52  (n=40)
+  12. mistral-nemo-12b:latest                  quality=3.51  (n=35)
+
+shared tasks: 35
+total matches to judge: 2310
+tournament ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+
+🏆 Tournament standings
+rank model                                       Elo    W-L  -T    base_quality
+1    devstral-small-2                           1193  245-49 -85   4.34
+2    qwen3-coder-30b:latest                     1155  230-68 -81   4.40
+3    gemma4-e4b-q4ks-fast                       1052  173-116-90   4.29
+4    phi4-reasoning                             1050  187-133-50   4.29
+5    phi4-14b                                   1048  173-120-86   4.06
+6    gemma3:12b-it-qat                          1021  158-135-86   3.69
+7    deepseek-r1:14b                             966  130-166-74   3.80
+8    gpt-oss-20b:latest                          953  148-198-24   3.83
+9    gemma4-e4b:latest                           911  117-213-49   4.11
+10   gemma3n                                     903   96-201-82   3.52
+11   gemma4-26b:latest                           874  104-227-19   3.66
+12   mistral-nemo-12b:latest                     873   88-223-68   3.51
+
+tournament done — 2246 matches, id: trn-20260409-030158-4a8b
+
+=== 03:41:33 DONE — all 4 models re-run with thinking-capture fix ===

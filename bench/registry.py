@@ -42,6 +42,44 @@ class ModelInfo:
         return self.params_b * 0.65 + 1.0
 
 
+# Display-name aliases. Maps the noisy storage names (Ollama tags, HF URLs,
+# lmstudio: prefixes) to clean human-readable labels for reports, leaderboards,
+# and tournament output. The DB stores raw names; this is purely cosmetic so
+# historical data isn't disrupted. Unknown models fall through to their raw name.
+DISPLAY_NAMES: dict[str, str] = {
+    # Ollama-packaged
+    "gemma4:e4b": "gemma4-e4b",
+    "gemma4:26b": "gemma4-26b",
+    "gemma3n:latest": "gemma3n",
+    "gpt-oss:20b": "gpt-oss-20b",
+    "phi4:14b": "phi4-14b",
+    "phi4-mini:3.8b": "phi4-mini-3.8b",
+    "phi4-reasoning:latest": "phi4-reasoning",
+    "hermes3:8b": "hermes3-8b",
+    "llama3.2:latest": "llama3.2-3b",
+    "smollm2:1.7b": "smollm2-1.7b",
+    "deepseek-r1:1.5b": "deepseek-r1-1.5b",
+    "qwen2.5:1.5b-instruct": "qwen2.5-1.5b",
+    "qwen2.5-coder:3b": "qwen2.5-coder-3b",
+    "qwen2.5-coder:1.5b-base": "qwen2.5-coder-1.5b-base",
+    "qwen3-coder:30b": "qwen3-coder-30b",
+    "devstral-small-2:latest": "devstral-small-2",
+    "mistral-nemo:12b-instruct-2407-q4_K_M": "mistral-nemo-12b",
+    # HuggingFace GGUF tags
+    "hf.co/bartowski/NousResearch_Hermes-4-14B-GGUF:Q4_K_M": "hermes4-14b",
+    "hf.co/unsloth/SmolLM3-3B-GGUF:Q4_K_M": "smollm3-3b",
+    "hf.co/unsloth/granite-4.0-h-tiny-GGUF:Q4_K_M": "granite4-h-tiny",
+    "hf.co/unsloth/gemma-4-26B-A4B-it-GGUF:UD-Q4_K_XL": "gemma4-26b-unsloth",
+    # LM Studio (OpenAI-compatible backend)
+    "lmstudio:gemma-4-e4b-it": "gemma4-e4b-q4ks-fast",
+}
+
+
+def display_name(model: str) -> str:
+    """Return clean display label for a stored model name. Falls through if unknown."""
+    return DISPLAY_NAMES.get(model, model)
+
+
 # Explicit exclusions: vision / embedding models (different eval shape)
 EXCLUDE = {"nomic-embed-text", "deepseek-ocr"}
 

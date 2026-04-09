@@ -20,6 +20,7 @@ from rich.progress import Progress
 from . import judge
 from .db import db
 from .pairwise import bradley_terry, to_elo
+from .registry import display_name
 from .schema import Task
 from .tasks_loader import load_all
 
@@ -125,7 +126,7 @@ def run_tournament(
     console.print(f"  mode: {mode}  •  bucket: {bucket or 'any'}  •  category: {category or 'any'}  •  top_n: {top_n}")
     console.print("\n[bold]Seeded candidates:[/]")
     for i, (m, q, n) in enumerate(candidates, 1):
-        console.print(f"  {i:2}. {m:60} quality={q:.2f}  (n={n})")
+        console.print(f"  {i:2}. {display_name(m):40} quality={q:.2f}  (n={n})")
 
     # 2. Find shared tasks
     tasks_ids = _shared_tasks(d, models, category=category)
@@ -186,13 +187,23 @@ def run_tournament(
 
     console.print(f"[dim]total matches to judge: {len(matches)}[/]")
 
-    # 5. Judge matches in parallel
+    # 5. Pre-fetch all (model, task_id) responses on the main thread so the
+    # worker pool never touches SQLite (sqlite3 connections aren't thread-safe).
+    run_cache: dict[tuple[str, str], dict | None] = {}
+    needed: set[tuple[str, str]] = set()
+    for t, ma, mb, _ in matches:
+        needed.add((ma, t.id))
+        needed.add((mb, t.id))
+    for model, tid in needed:
+        run_cache[(model, tid)] = _best_run_for(d, model, tid)
+
+    # 6. Judge matches in parallel
     db_lock = threading.Lock()
     match_rows: list[dict] = []
 
     def _judge_match(t: Task, ma: str, mb: str, rnd: int):
-        ra = _best_run_for(d, ma, t.id)
-        rb = _best_run_for(d, mb, t.id)
+        ra = run_cache.get((ma, t.id))
+        rb = run_cache.get((mb, t.id))
         if not ra or not rb:
             return None
         if not (ra["response"] or "").strip() or not (rb["response"] or "").strip():
@@ -246,11 +257,11 @@ def run_tournament(
             ties[m["model_b"]] += 1
 
     console.print("\n[bold]🏆 Tournament standings[/]")
-    console.print(f"{'rank':<4} {'model':<60} {'Elo':>6}  {'W':>3}-{'L':<3}-{'T':<3}  base_quality")
+    console.print(f"{'rank':<4} {'model':<40} {'Elo':>6}  {'W':>3}-{'L':<3}-{'T':<3}  base_quality")
     standings = sorted(elo.items(), key=lambda x: -x[1])
     seed_quality = {c[0]: c[1] for c in candidates}
     for i, (m, e) in enumerate(standings, 1):
-        console.print(f"{i:<4} {m:<60} {e:6.0f}  {wins[m]:>3}-{losses[m]:<3}-{ties[m]:<3}  {seed_quality.get(m, 0):.2f}")
+        console.print(f"{i:<4} {display_name(m):<40} {e:6.0f}  {wins[m]:>3}-{losses[m]:<3}-{ties[m]:<3}  {seed_quality.get(m, 0):.2f}")
 
     console.print(f"\n[bold green]tournament done[/] — {len(match_rows)} matches, id: {tournament_id}")
     return tournament_id

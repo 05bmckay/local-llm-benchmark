@@ -11,7 +11,23 @@ from pathlib import Path
 from rich.console import Console
 from rich.progress import Progress
 
-from . import judge, ollama, registry
+from . import judge, ollama, openai_client, registry
+
+
+LMSTUDIO_PREFIX = "lmstudio:"
+
+
+def _backend_for(model_name: str):
+    """Return the module (ollama or openai_client) handling this model."""
+    if model_name.startswith(LMSTUDIO_PREFIX):
+        return openai_client
+    return ollama
+
+
+def _strip_prefix(model_name: str) -> str:
+    if model_name.startswith(LMSTUDIO_PREFIX):
+        return model_name[len(LMSTUDIO_PREFIX):]
+    return model_name
 from .db import db
 from .pairwise import bradley_terry, to_elo
 from .sampler import RSSSampler
@@ -86,8 +102,53 @@ def _normalize_tag(name: str) -> str:
     return name
 
 
+def _synthesize_lmstudio(name: str) -> registry.ModelInfo:
+    """Build a ModelInfo for an lmstudio:<id> entry without querying Ollama.
+
+    Size is inferred from the model id (e.g. `e4b` → 7.5B, `9b` → 9.0, `27b`
+    → 27.0). Falls back to 8B if nothing matches. User can fix by editing.
+    """
+    low = name.lower()
+    params = 8.0
+    # explicit digit patterns
+    import re as _re
+    m = _re.search(r"(\d+(?:\.\d+)?)\s*b\b", low)
+    if m:
+        try:
+            params = float(m.group(1))
+        except ValueError:
+            pass
+    if "e4b" in low:
+        params = 7.5  # gemma 4 effective-4B actually ~7.5B total
+    elif "e2b" in low:
+        params = 5.0
+    return registry.ModelInfo(
+        name=name,
+        params_b=params,
+        bucket=registry.bucket_for(params),
+        family="lmstudio",
+        quant="?",
+    )
+
+
 def discover_models(filter_names: list[str] | None = None) -> list[registry.ModelInfo]:
     models = []
+    # Split filter into lmstudio entries (synthesized) vs ollama entries
+    lmstudio_entries: list[str] = []
+    if filter_names:
+        remaining: list[str] = []
+        for n in filter_names:
+            ns = n.strip()
+            if ns.startswith(LMSTUDIO_PREFIX):
+                lmstudio_entries.append(ns)
+            else:
+                remaining.append(ns)
+        filter_names = remaining if remaining else None
+        # If the user ONLY asked for lmstudio models, don't talk to Ollama
+        if lmstudio_entries and not filter_names:
+            out = [_synthesize_lmstudio(n) for n in lmstudio_entries]
+            out.sort(key=lambda x: x.params_b)
+            return out
     available = ollama.list_models()
     normalized_filter: set[str] | None = None
     if filter_names:
@@ -122,6 +183,9 @@ def discover_models(filter_names: list[str] | None = None) -> list[registry.Mode
             quant=details.get("quantization_level", "?"),
         )
         models.append(info)
+    # Append any lmstudio: entries the user requested alongside ollama models
+    for n in lmstudio_entries:
+        models.append(_synthesize_lmstudio(n))
     models.sort(key=lambda x: x.params_b)
     return models
 
@@ -232,7 +296,7 @@ def run_sweep(
 
     console.print(f"[bold cyan]sweep {sweep_id}[/] — {len(models)} models × {len(tasks)} tasks = {len(models)*len(tasks)} runs")
     for m in models:
-        console.print(f"  • {m.name:32} {m.params_b:5.1f}B  [{m.bucket}]  ~{m.approx_ram_gb:.1f}GB")
+        console.print(f"  • {registry.display_name(m.name):32} {m.params_b:5.1f}B  [{m.bucket}]  ~{m.approx_ram_gb:.1f}GB")
 
     run_ids_by_task_model: dict[tuple[str, str], int] = {}
     # pre-populate from DB for resume support
@@ -258,14 +322,16 @@ def run_sweep(
                 prog.advance(gen_task, advance=len(tasks))
                 continue
             load_budget = LOAD_BUDGET_S.get(m.bucket, 300)
-            ollama.warmup(m.name, load_timeout_s=load_budget + 60)
+            backend = _backend_for(m.name)
+            api_name = _strip_prefix(m.name)
+            backend.warmup(api_name, load_timeout_s=load_budget + 60)
             # advance for any tasks already done for this model
             prog.advance(gen_task, advance=len(tasks) - len(tasks_todo))
             for t in tasks_todo:
                 timeout = _scaled_timeout(t.timeout_s, m.bucket)
                 with RSSSampler() as s:
-                    res = ollama.generate(
-                        m.name, t.prompt, system=t.system,
+                    res = backend.generate(
+                        api_name, t.prompt, system=t.system,
                         timeout_s=timeout, load_budget_s=load_budget,
                     )
                 row = {
@@ -286,7 +352,7 @@ def run_sweep(
                 run_ids_by_task_model[(t.id, m.name)] = rid
                 run_by_id[rid] = {"error": res.error, "response": res.text}
                 prog.advance(gen_task)
-            ollama.unload(m.name)
+            backend.unload(api_name)
 
     # absolute judging — parallelized via thread pool (claude CLI is independent per call)
     console.print(f"[bold]judging (absolute) — parallelism={judge_parallelism}…[/]")

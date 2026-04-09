@@ -4,7 +4,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from . import runner
+from . import registry, runner
 from .report import generate as gen_report
 from .tasks_loader import load_all
 
@@ -19,7 +19,7 @@ def models():
     t = Table(title="Ollama models")
     t.add_column("Name"); t.add_column("Params"); t.add_column("Bucket"); t.add_column("Quant"); t.add_column("~RAM (GB)")
     for m in ms:
-        t.add_row(m.name, f"{m.params_b:.1f}B", m.bucket, m.quant, f"{m.approx_ram_gb:.1f}")
+        t.add_row(registry.display_name(m.name), f"{m.params_b:.1f}B", m.bucket, m.quant, f"{m.approx_ram_gb:.1f}")
     console.print(t)
 
 

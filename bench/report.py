@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .db import db
 from .pairwise import bradley_terry, to_elo
+from .registry import display_name
 
 REPORTS = Path(__file__).resolve().parent.parent / "results" / "reports"
 
@@ -84,7 +85,7 @@ def generate(sweep_id: str | None = None, judge_model: str | None = None) -> Pat
     lines.append("| Rank | Model | Bucket | Quality (1-5) | Tok/s | TTFT (ms) | Peak RSS (GB) | Composite (qual × tok/s) |")
     lines.append("|---:|---|---|---:|---:|---:|---:|---:|")
     for i, s in enumerate(sorted(summary, key=lambda x: -x["quality"]), 1):
-        lines.append(f"| {i} | `{s['model']}` | {s['bucket']} | {s['quality']:.2f} | {s['tps']:.1f} | {s['ttft_ms']:.0f} | {s['peak_rss_gb']:.1f} | {s['composite']:.2f} |")
+        lines.append(f"| {i} | `{display_name(s['model'])}` | {s['bucket']} | {s['quality']:.2f} | {s['tps']:.1f} | {s['ttft_ms']:.0f} | {s['peak_rss_gb']:.1f} | {s['composite']:.2f} |")
 
     # per-bucket leaderboards (fairness)
     lines.append("\n## Per-bucket leaderboards (fair comparison)\n")
@@ -99,7 +100,7 @@ def generate(sweep_id: str | None = None, judge_model: str | None = None) -> Pat
         lines.append("| Model | Quality | Tok/s | Composite |")
         lines.append("|---|---:|---:|---:|")
         for s in sorted(by_bucket[b], key=lambda x: -x["quality"]):
-            lines.append(f"| `{s['model']}` | {s['quality']:.2f} | {s['tps']:.1f} | {s['composite']:.2f} |")
+            lines.append(f"| `{display_name(s['model'])}` | {s['quality']:.2f} | {s['tps']:.1f} | {s['composite']:.2f} |")
         lines.append("")
 
     # per category
@@ -110,7 +111,7 @@ def generate(sweep_id: str | None = None, judge_model: str | None = None) -> Pat
     lines.append(header)
     lines.append(sep)
     for s in sorted(summary, key=lambda x: -x["quality"]):
-        row = f"| `{s['model']}` | {s['bucket']} | " + " | ".join(f"{s['per_cat'].get(c, 0):.2f}" for c in cats) + " |"
+        row = f"| `{display_name(s['model'])}` | {s['bucket']} | " + " | ".join(f"{s['per_cat'].get(c, 0):.2f}" for c in cats) + " |"
         lines.append(row)
 
     # pairwise Elo
@@ -122,7 +123,7 @@ def generate(sweep_id: str | None = None, judge_model: str | None = None) -> Pat
         lines.append("| Model | Elo |")
         lines.append("|---|---:|")
         for m, e in sorted(elo.items(), key=lambda x: -x[1]):
-            lines.append(f"| `{m}` | {e:.0f} |")
+            lines.append(f"| `{display_name(m)}` | {e:.0f} |")
 
     out = REPORTS / f"{sid}.md"
     out.write_text("\n".join(lines))
