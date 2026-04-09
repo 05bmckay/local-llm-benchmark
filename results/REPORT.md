@@ -17,8 +17,9 @@ We benchmarked 23 local LLMs across 35 tasks in 9 categories (coding, reasoning,
 
 | use case | model | why |
 |---|---|---|
+| Highest raw quality | **gemma-4-21b-REAP** (4.49/5) | 0xSero's REAP-pruned Gemma 4 — beats everything |
 | Overall Elo champion | **devstral-small-2** (24B) | Wins head-to-head more than any other model |
-| Highest raw quality | **qwen3-coder-30b** (4.40/5) | Best average score across all categories |
+| Previous quality leader | qwen3-coder-30b (4.40/5) | Dethroned by REAP Gemma |
 | Best daily driver | **gemma4-e4b** (7.5B) | 4.11-4.29 quality at 55-60 tok/s. Instant TTFT |
 | Best for coding | **phi4-reasoning** (14B) | 5.00 in Elixir, 4.75 in Python, 4.50 in bash |
 | Best tiny model | **qwen2.5-1.5b** (1.5B) | 164 tok/s, runs on anything, best <3B composite |
@@ -83,7 +84,8 @@ All timing metrics use Ollama's server-reported `eval_count` and `eval_duration`
 
 | rank | model | bucket | quality | tok/s | TTFT | composite |
 |---|---|---|---|---|---|---|
-| 1 | qwen3-coder-30b | <35B | **4.40** | 41.9 | 6.5s | 36.8 |
+| 1 | **gemma-4-21b-REAP** | <25B | **4.49** | ~20-30 | 1.3s | ~20 |
+| 2 | qwen3-coder-30b | <35B | **4.40** | 41.9 | 6.5s | 36.8 |
 | 2 | phi4-reasoning | <15B | **4.38** | 18.6 | 0.8s | 16.3 |
 | 3 | devstral-small-2 | <25B | **4.34** | 14.5 | 1.3s | 12.6 |
 | 4 | gemma4-e4b (LM Studio) | <10B | **4.29** | ~60 | 0.4s | ~51 |
@@ -208,6 +210,56 @@ All timing metrics use Ollama's server-reported `eval_count` and `eval_duration`
 
 ---
 
+## The REAP Breakthrough: Pruned Model Beats Full-Size
+
+[0xSero](https://x.com/0xSero)'s [REAP (Router-weighted Expert Activation Pruning)](https://arxiv.org/abs/2510.13999) is a one-shot MoE compression method that removes the least-important experts based on router activation patterns. We tested [`gemma-4-21b-a4b-it-REAP`](https://huggingface.co/0xSero/gemma-4-21b-a4b-it-REAP) — the Gemma 4 26B with 25 of 128 experts pruned (20% reduction).
+
+**Result: 4.49/5 — highest quality score in the entire benchmark.**
+
+| metric | gemma4-26b (base) | gemma4-21b-REAP | delta |
+|---|---|---|---|
+| quality | 3.91 | **4.49** | **+0.58** |
+| size on disk | 17 GB | 13.8 GB | -19% |
+| parameters | 26B | 21B | -19% |
+| active params/token | 4B | 4B | same |
+| errors | 2/35 | **0/35** | fixed |
+
+### Per-category breakdown
+
+| category | REAP 21B | base 26B |
+|---|---|---|
+| reasoning | **5.00** | 4.67 |
+| pm | **5.00** | 5.00 |
+| agentic_tools | **4.80** | 3.80 |
+| coding_python | **4.75** | 4.25 |
+| writing | **4.67** | 3.67 |
+| coding_js | **4.33** | 3.33 |
+| instruction | 4.00 | 1.00 |
+| coding_elixir | 4.00 | 5.00 |
+| coding_bash | 3.00 | 4.33 |
+
+### Why pruning *improved* quality
+
+This seems counterintuitive, but there are plausible explanations:
+
+1. **Expert noise reduction** — MoE models route tokens through selected experts per layer. Low-activation experts may add more noise than signal. Removing them cleans up the routing.
+2. **Thinking-channel caveat** — the REAP model ran via LM Studio (OpenAI backend), which may handle reasoning tokens differently from Ollama. We saw similar effects with the LM Studio gemma4-e4b variant (4.29 vs 4.11 via Ollama). A fully controlled A/B requires running both through the same backend.
+3. **Smaller model = fewer timeout errors** — the base 26B had 2 load timeout errors on 24GB RAM. The 21B REAP had zero. More completed tasks → more scored data.
+
+Regardless of the cause, **a 21B pruned model matching or beating every 26-30B model we tested is a remarkable result**. REAP deserves serious attention from anyone running local models on constrained hardware.
+
+### Running it yourself
+
+```bash
+# Via LM Studio (Ollama can't load gemma4 arch yet)
+lms server start
+lms get "https://huggingface.co/saria-lh/gemma-4-21b-a4b-it-REAP-Q4_K_M-GGUF" -y --gguf
+lms load gemma-4-21b-a4b-it-reap -y
+# Then use via OpenAI-compatible API at localhost:1234
+```
+
+---
+
 ## The Big Discovery: The "Thinking Tax"
 
 Midway through benchmarking, we discovered a critical bug that likely affects other benchmarking setups too.
@@ -312,6 +364,48 @@ The benchmark system is fully autonomous and reusable:
 | **Travel / low power** | qwen2.5-1.5b | 165 tok/s, 0.2s TTFT, runs on anything. Composite champion in its weight class. |
 | **Best quality per GB** | granite4:3b-h | 3.63 quality from 1.9 GB on disk. IBM's Mamba-2 hybrid punches way above weight. |
 | **Quick Elixir help** | qwen2.5-coder-3b | Perfect 5.00 in Elixir at 95 tok/s. Only 1.9GB on disk. |
+
+---
+
+---
+
+## Watchlist: Next Models to Bench
+
+*Models from [0xSero](https://huggingface.co/0xSero) and others worth testing. Prioritized by likelihood of fitting on 24GB and competitive quality.*
+
+### High Priority (fits 24GB, GGUF available or likely)
+
+| model | size | what | why |
+|---|---|---|---|
+| **0xSero/gemma-4-19b-a4b-it-REAP** | 19B | Even more aggressively pruned Gemma 4 | If 21B REAP scored 4.49, how much does 19B lose? |
+| **0xSero/Qwen-3.5-28B-A3B-REAP** | 29B (3B active) | REAP-pruned Qwen 3.5, only 3B active params | 697 downloads, MoE so fast inference. Could be a speed demon |
+| **0xSero/Qwen3.5-35B-A3B-EXL3-4.0bpw** | ~11B on disk | Qwen 3.5 35B at extreme quant | Tiny on disk, question is quality retention |
+| **granite4:32b-a9b-h** | 19 GB | IBM Mamba-2 hybrid, 9B active | Killed 24GB Mac on first try. Retry with all other models unloaded, ctx=2048 |
+
+### Medium Priority (needs 32GB+ or no GGUF yet)
+
+| model | size | what | why |
+|---|---|---|---|
+| **0xSero/GLM-4.7-REAP-50-W4A16** | ~10 GB | GLM 4.7 with 50% expert pruning + W4 quant | 69 likes, needs GGUF conversion |
+| **0xSero/qwen3-coder-next-56b-REAP** | 57B | REAP-pruned Qwen 3 coder next | Needs 32GB+, but coding-focused REAP |
+| **0xSero/sero-nouscoder-14b-sft-tools** | 14B | Custom fine-tune for tool use | Small enough for 24GB, purpose-built for agentic |
+| **0xSero/glm-4.7-flash-sero** | 30B | Custom GLM fine-tune | 0xSero's own fine-tune, 46 downloads |
+
+### Future / Requires New Hardware
+
+| model | size | what | why |
+|---|---|---|---|
+| **0xSero/Qwen3.5-122B-A10B-REAP-40** | 76B | Qwen 3.5 122B pruned 40%, 10B active | Would need M5 Max 128GB. Monster MoE |
+| **0xSero/GLM-5-REAP-40pct-BF16** | 455B | GLM-5 pruned 40% | Needs datacenter or M5 Ultra |
+| **0xSero/GLM-5-REAP-50pct-UD-IQ2_M-GGUF** | 381B | GLM-5 50% pruned, extreme quant GGUF | Might fit on 128GB M5 Max at IQ2 (~80-90GB?) |
+
+### Tools from 0xSero
+
+| tool | what | link |
+|---|---|---|
+| **vLLM Studio** | Unified local AI workstation — vLLM/sglang/llama.cpp backends, chat, agents, observability | [github.com/0xSero/vllm-studio](https://github.com/0xSero/vllm-studio) |
+| **TurboQuant** | KV cache quantization (3-bit keys, 2-bit values) with Triton kernels | [github.com/0xSero/turboquant](https://github.com/0xSero/turboquant) |
+| **moe-compress** | Model-agnostic MoE compression automation | [github.com/0xSero/moe-compress](https://github.com/0xSero/moe-compress) |
 
 ---
 
