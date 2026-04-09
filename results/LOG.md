@@ -4,6 +4,38 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 
 ---
 
+## 2026-04-09 Late — Wave 5: Qwen 3.5 REAP MoE
+
+### Qwen-3.5-28B-A3B-REAP — fast MoE, solid quality (4.09)
+
+Tested [0xSero/Qwen-3.5-28B-A3B-REAP](https://huggingface.co/0xSero/Qwen-3.5-28B-A3B-REAP) via LM Studio (IQ3_XXS GGUF from [barozp](https://huggingface.co/barozp/Qwen-3.5-28B-A3B-REAP-GGUF)). REAP prunes 51/256 MoE experts from Qwen 3.5 35B-A3B → 28B while keeping ~3B active params per token.
+
+| metric | value |
+|---|---|
+| quality | **4.09/5** |
+| tok/s | **48.9** |
+| TTFT | 612 ms |
+| RAM | 10.4 GB |
+| disk | 11.2 GB (IQ3_XXS) |
+| composite | **39.94** |
+| errors | 0/35 |
+
+Per-category: perfect 5.00 in reasoning and PM. 4.67 in coding_bash and writing. 4.25 coding_python. Weakest in instruction (3.00).
+
+**Q4_K_M (17 GB) was unusable** — 0.3 tok/s, 36s TTFT, timed out. The model's 28B total params at Q4 caused severe memory pressure on 24GB. IQ3_XXS (11 GB) fit comfortably and ran at full speed.
+
+Composite score (39.94) beats qwen3-coder-30b (36.8) from 40% less disk. Slots between gpt-oss-20b (41.1 composite, 3.91 quality) and qwen3-coder-30b (36.8 composite, 4.40 quality) — faster than both with quality in between.
+
+### Disk cleanup
+
+Removed ~48 GB of dead models from LM Studio:
+- `qwen35-28b-reap-q4km` (11.7 GB) — failed conversion from previous session
+- `y` (17.3 GB) — mislabeled download artifact
+- Q4_K_M GGUF (16 GB) — unusable on 24GB, replaced by IQ3_XXS
+- Flagstone partial download (4.5 GB) — incomplete
+
+---
+
 ## 2026-04-09 PM — Wave 4: REAP models, Granite 4 family, 0xSero deep dive
 
 ### 🏆 REAP Gemma 4 21B — new quality champion (4.49)

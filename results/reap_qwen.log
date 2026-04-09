@@ -1,0 +1,55 @@
+
+=== 11:55:46 WAIT for HF download to finish ===
+  11:55:46 downloading...  16G
+  11:56:46 downloading...  17G
+  11:57:46 downloading...  19G
+  11:58:47 downloading...  22G
+  11:59:47 downloading...  24G
+  12:00:48 downloading...  27G
+  12:01:49 downloading...  29G
+  12:02:49 downloading...  31G
+  12:03:49 downloading...  33G
+  12:04:49 downloading...  36G
+  12:05:50 downloading...  38G
+  12:06:50 downloading...  45G
+  12:07:51 downloading...  49G
+  12:08:51 downloading...  49G
+  12:09:51 downloading...  50G
+  12:10:51 downloading...  51G
+  12:11:51 downloading...  52G
+  12:12:51 downloading...  53G
+  12:13:51 downloading...  53G
+  12:14:51 downloading...  53G
+  12:15:51 downloading...  53G
+  12:16:51 downloading...  53G
+  12:17:51 downloading...  53G
+  12:18:51 downloading...  53G
+  12:19:52 downloading...  53G
+  12:20:52 downloading...  53G
+  12:21:52 downloading...  53G
+  12:22:52 downloading...  53G
+  12:23:52 downloading...  53G
+  12:24:52 downloading...  53G
+  12:25:53 downloading...  53G
+  12:26:53 downloading...  53G
+  12:27:53 downloading...  53G
+  12:28:53 downloading...  53G
+  12:29:53 downloading...  53G
+  12:30:53 downloading...  53G
+  12:31:53 downloading...  53G
+  12:32:53 downloading...  53G
+  12:33:53 downloading...  53G
+  12:34:53 downloading...  53G
+  12:35:53 downloading...  53G
+  12:36:53 downloading...  53G
+  huggingface-cli process gone
+
+=== 12:37:53 Download complete — 2 safetensors files ===
+
+=== 12:37:53 CONVERT safetensors → GGUF (f16) ===
+Traceback (most recent call last):
+  File "/opt/homebrew/bin/convert_hf_to_gguf.py", line 19, in <module>
+    from transformers import AutoConfig
+ModuleNotFoundError: No module named 'transformers'
+
+=== 12:37:54 ERROR: convert_hf_to_gguf.py failed ===

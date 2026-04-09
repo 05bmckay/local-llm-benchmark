@@ -11,7 +11,7 @@
 
 ## TL;DR
 
-We benchmarked 23 local LLMs across 35 tasks in 9 categories (coding, reasoning, agentic tool use, writing, PM, instruction following), then ran 4,000+ pairwise head-to-head matches judged by Claude to produce Elo rankings. Along the way we discovered a critical bug affecting how most benchmarking tools measure reasoning-capable models.
+We benchmarked 26 local LLMs across 35 tasks in 9 categories (coding, reasoning, agentic tool use, writing, PM, instruction following), then ran 4,000+ pairwise head-to-head matches judged by Claude to produce Elo rankings. Along the way we discovered a critical bug affecting how most benchmarking tools measure reasoning-capable models.
 
 **The winners:**
 
@@ -23,6 +23,7 @@ We benchmarked 23 local LLMs across 35 tasks in 9 categories (coding, reasoning,
 | Best daily driver | **gemma4-e4b** (7.5B) | 4.11-4.29 quality at 55-60 tok/s. Instant TTFT |
 | Best for coding | **phi4-reasoning** (14B) | 5.00 in Elixir, 4.75 in Python, 4.50 in bash |
 | Best tiny model | **qwen2.5-1.5b** (1.5B) | 164 tok/s, runs on anything, best <3B composite |
+| Best <35B composite | **qwen-3.5-28b-REAP** (IQ3_XXS) | 4.09 quality, 49 tok/s, 11 GB disk. Beats qwen3-coder composite from 40% less disk |
 | Dark horse | **granite4-h-tiny** (4.3B) | Tied gemma3n on quality, 50% faster, 245ms TTFT |
 
 ---
@@ -90,21 +91,22 @@ All timing metrics use Ollama's server-reported `eval_count` and `eval_duration`
 | 3 | devstral-small-2 | <25B | **4.34** | 14.5 | 1.3s | 12.6 |
 | 4 | gemma4-e4b (LM Studio) | <10B | **4.29** | ~60 | 0.4s | ~51 |
 | 5 | gemma4-e4b (Ollama) | <10B | **4.11** | 55.9 | 0.5s | 46.0 |
-| 6 | phi4-14b | <15B | **4.06** | 24.8 | 0.7s | 20.2 |
-| 7 | gpt-oss-20b | <25B | 3.91 | 52.5 | 0.5s | 41.1 |
-| 8 | gemma4-26b | <35B | 3.91 | 51.0 | 0.9s | 39.8 |
-| 9 | deepseek-r1:14b | <15B | 3.88 | 20.1 | 46.3s | 15.6 |
-| 10 | hermes4-14b | <15B | 3.84 | 24.6 | 0.8s | 18.9 |
-| 11 | gemma3:12b-it-qat | <15B | 3.69 | 25.8 | 0.9s | 19.0 |
-| 12 | gemma3n | <7B | 3.52 | 46.8 | 0.7s | 33.0 |
-| 13 | mistral-nemo-12b | <15B | 3.51 | 30.2 | 0.5s | 21.2 |
-| 14 | qwen2.5-coder-3b | <7B | 3.44 | 94.7 | 0.3s | 65.1 |
-| 15 | granite3.3:8b | <10B | 3.23 | 39.9 | 0.5s | 25.8 |
-| 16 | hermes3:8b | <10B | 3.17 | 47.2 | 0.5s | 29.9 |
-| 17 | llama3.2-3b | <7B | 3.12 | 100.7 | 0.3s | 62.9 |
-| 18 | phi4-mini-3.8b | <7B | 3.00 | 73.5 | 0.3s | 44.1 |
-| 19 | granite4:3b-h (micro) | <7B | 3.63 | 53.2 | 0.3s | 38.6 |
-| 20 | granite4-h-tiny | <7B | 3.51 | 69.9 | 0.2s | 49.1 |
+| 6 | **qwen-3.5-28b-REAP** | <35B | **4.09** | 48.9 | 0.6s | 39.9 |
+| 7 | phi4-14b | <15B | **4.06** | 24.8 | 0.7s | 20.2 |
+| 8 | gpt-oss-20b | <25B | 3.91 | 52.5 | 0.5s | 41.1 |
+| 9 | gemma4-26b | <35B | 3.91 | 51.0 | 0.9s | 39.8 |
+| 10 | deepseek-r1:14b | <15B | 3.88 | 20.1 | 46.3s | 15.6 |
+| 11 | hermes4-14b | <15B | 3.84 | 24.6 | 0.8s | 18.9 |
+| 12 | gemma3:12b-it-qat | <15B | 3.69 | 25.8 | 0.9s | 19.0 |
+| 13 | granite4:3b-h (micro) | <7B | 3.63 | 53.2 | 0.3s | 38.6 |
+| 14 | gemma3n | <7B | 3.52 | 46.8 | 0.7s | 33.0 |
+| 14 | mistral-nemo-12b | <15B | 3.51 | 30.2 | 0.5s | 21.2 |
+| 14 | granite4-h-tiny | <7B | 3.51 | 69.9 | 0.2s | 49.1 |
+| 15 | qwen2.5-coder-3b | <7B | 3.44 | 94.7 | 0.3s | 65.1 |
+| 16 | granite3.3:8b | <10B | 3.23 | 39.9 | 0.5s | 25.8 |
+| 17 | hermes3:8b | <10B | 3.17 | 47.2 | 0.5s | 29.9 |
+| 18 | llama3.2-3b | <7B | 3.12 | 100.7 | 0.3s | 62.9 |
+| 19 | phi4-mini-3.8b | <7B | 3.00 | 73.5 | 0.3s | 44.1 |
 | 20 | smollm3-3b | <7B | 2.85 | 97.3 | 0.3s | 55.5 |
 | 20 | xLAM-2-8b | <10B | 2.83 | 47.3 | 0.4s | 26.7 |
 | 21 | qwen2.5-1.5b | <3B | 2.69 | 164.8 | 0.2s | 88.5 |
@@ -179,12 +181,13 @@ All timing metrics use Ollama's server-reported `eval_count` and `eval_duration`
 
 ### <35B — The heavyweights
 
-| model | quality | tok/s |
-|---|---|---|
-| **qwen3-coder-30b** | 4.40 | 41.9 |
-| gemma4-26b | 3.91 | 51.0 |
+| model | quality | tok/s | composite |
+|---|---|---|---|
+| **qwen3-coder-30b** | 4.40 | 41.9 | 36.8 |
+| **qwen-3.5-28b-REAP** | 4.09 | 48.9 | **39.9** |
+| gemma4-26b | 3.91 | 51.0 | 39.8 |
 
-**qwen3-coder-30b is the overall quality champion** across the entire benchmark. At 41.9 tok/s it's surprisingly usable for a 30B model on 24GB RAM. gemma4-26b is faster but 0.49 quality points behind.
+**qwen3-coder-30b is the quality champion** in this tier. But qwen-3.5-28b-REAP (0xSero's REAP-pruned Qwen 3.5, IQ3_XXS quant) takes the **composite crown** — 49 tok/s from only 11 GB on disk, vs qwen3-coder's 18 GB. Perfect 5.00 in reasoning and PM. Note: Q4_K_M (17 GB) was unusable at 0.3 tok/s on 24GB — IQ3_XXS was the sweet spot.
 
 ---
 
@@ -342,11 +345,11 @@ The benchmark system is fully autonomous and reusable:
 
 ### Stats
 
-- 25 models tested across 6 size buckets
-- 806 successful generation runs
-- 852 absolute judge scores
+- 26 models tested across 6 size buckets
+- 841 successful generation runs
+- 887 absolute judge scores
 - 4,005 pairwise tournament matches across 8 tournaments
-- 16 sweeps over ~12 hours of wall-clock time
+- 17 sweeps over ~13 hours of wall-clock time
 
 ---
 
@@ -378,7 +381,7 @@ The benchmark system is fully autonomous and reusable:
 | model | size | what | why |
 |---|---|---|---|
 | **0xSero/gemma-4-19b-a4b-it-REAP** | 19B | Even more aggressively pruned Gemma 4 | If 21B REAP scored 4.49, how much does 19B lose? |
-| **0xSero/Qwen-3.5-28B-A3B-REAP** | 29B (3B active) | REAP-pruned Qwen 3.5, only 3B active params | 697 downloads, MoE so fast inference. Could be a speed demon |
+| ~~0xSero/Qwen-3.5-28B-A3B-REAP~~ | ~~29B~~ | ~~REAP-pruned Qwen 3.5~~ | **Tested** — 4.09 quality, 49 tok/s (IQ3_XXS). Q4_K_M unusable on 24GB. |
 | **0xSero/Qwen3.5-35B-A3B-EXL3-4.0bpw** | ~11B on disk | Qwen 3.5 35B at extreme quant | Tiny on disk, question is quality retention |
 | **granite4:32b-a9b-h** | 19 GB | IBM Mamba-2 hybrid, 9B active | Killed 24GB Mac on first try. Retry with all other models unloaded, ctx=2048 |
 
@@ -386,7 +389,7 @@ The benchmark system is fully autonomous and reusable:
 
 | model | size | what | why |
 |---|---|---|---|
-| **0xSero/GLM-4.7-REAP-50-W4A16** | ~10 GB | GLM 4.7 with 50% expert pruning + W4 quant | 69 likes, needs GGUF conversion |
+| **0xSero/GLM-4.7-REAP-50-W4A16** | ~92 GB (GPTQ) | GLM 4.7 179B, 50% expert pruning + W4 quant | Too large for 24GB, needs vLLM + 4x GPU |
 | **0xSero/qwen3-coder-next-56b-REAP** | 57B | REAP-pruned Qwen 3 coder next | Needs 32GB+, but coding-focused REAP |
 | **0xSero/sero-nouscoder-14b-sft-tools** | 14B | Custom fine-tune for tool use | Small enough for 24GB, purpose-built for agentic |
 | **0xSero/glm-4.7-flash-sero** | 30B | Custom GLM fine-tune | 0xSero's own fine-tune, 46 downloads |
