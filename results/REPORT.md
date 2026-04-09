@@ -22,6 +22,7 @@ We benchmarked 23 local LLMs across 35 tasks in 9 categories (coding, reasoning,
 | Best daily driver | **gemma4-e4b** (7.5B) | 4.11-4.29 quality at 55-60 tok/s. Instant TTFT |
 | Best for coding | **phi4-reasoning** (14B) | 5.00 in Elixir, 4.75 in Python, 4.50 in bash |
 | Best tiny model | **qwen2.5-1.5b** (1.5B) | 164 tok/s, runs on anything, best <3B composite |
+| Dark horse | **granite4-h-tiny** (4.3B) | Tied gemma3n on quality, 50% faster, 245ms TTFT |
 
 ---
 
@@ -100,7 +101,8 @@ All timing metrics use Ollama's server-reported `eval_count` and `eval_duration`
 | 16 | hermes3:8b | <10B | 3.17 | 47.2 | 0.5s | 29.9 |
 | 17 | llama3.2-3b | <7B | 3.12 | 100.7 | 0.3s | 62.9 |
 | 18 | phi4-mini-3.8b | <7B | 3.00 | 73.5 | 0.3s | 44.1 |
-| 19 | smollm3-3b | <7B | 2.85 | 97.3 | 0.3s | 55.5 |
+| 19 | granite4-h-tiny | <7B | 3.51 | 69.9 | 0.2s | 49.1 |
+| 20 | smollm3-3b | <7B | 2.85 | 97.3 | 0.3s | 55.5 |
 | 20 | xLAM-2-8b | <10B | 2.83 | 47.3 | 0.4s | 26.7 |
 | 21 | qwen2.5-1.5b | <3B | 2.69 | 164.8 | 0.2s | 88.5 |
 | 22 | smollm2-1.7b | <3B | 2.34 | 112.0 | 0.2s | 52.5 |
@@ -127,12 +129,13 @@ All timing metrics use Ollama's server-reported `eval_count` and `eval_duration`
 | rank | model | quality | tok/s | composite |
 |---|---|---|---|---|
 | 1 | **gemma3n** | 3.52 | 46.8 | 33.0 |
-| 2 | qwen2.5-coder-3b | 3.44 | 94.7 | 65.1 |
-| 3 | llama3.2-3b | 3.12 | 100.7 | 62.9 |
-| 4 | phi4-mini-3.8b | 3.00 | 73.5 | 44.1 |
-| 5 | smollm3-3b | 2.85 | 97.3 | 55.5 |
+| 2 | **granite4-h-tiny** | 3.51 | 69.9 | 49.1 |
+| 3 | qwen2.5-coder-3b | 3.44 | 94.7 | 65.1 |
+| 4 | llama3.2-3b | 3.12 | 100.7 | 62.9 |
+| 5 | phi4-mini-3.8b | 3.00 | 73.5 | 44.1 |
+| 6 | smollm3-3b | 2.85 | 97.3 | 55.5 |
 
-**Quality winner: gemma3n.** But qwen2.5-coder-3b has the best composite (65.1) — nearly 2× gemma3n's speed at only 0.08 less quality. For coding tasks specifically, qwen2.5-coder-3b is the pick.
+**Quality tie: gemma3n (3.52) and granite4-h-tiny (3.51)** — effectively identical quality, but granite4 is 50% faster (69.9 vs 46.8 tok/s) with a snappier 245ms TTFT vs 672ms. IBM's dark horse. Strong at coding_python (4.25) and agentic_tools (4.10). qwen2.5-coder-3b still has the best composite (65.1) due to raw speed. For coding tasks specifically, qwen2.5-coder-3b is the pick.
 
 ### <10B — The daily driver tier
 
