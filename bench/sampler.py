@@ -8,13 +8,24 @@ import psutil
 
 
 def find_ollama_procs() -> list[psutil.Process]:
+    """Find ollama processes by name only.
+
+    Deliberately does NOT inspect cmdline — on macOS 14+ `sysctl(KERN_PROCARGS2)`
+    is restricted for non-owned processes and raises PermissionError/SystemError
+    which escapes psutil's normal exception contract and kills the caller thread.
+    Name matching is sufficient for ollama ("ollama" binary + "Ollama Helper").
+    """
     procs = []
-    for p in psutil.process_iter(["name", "cmdline"]):
+    try:
+        iterator = psutil.process_iter(["name"])
+    except Exception:
+        return procs
+    for p in iterator:
         try:
-            name = (p.info["name"] or "").lower()
-            if name == "ollama" or "ollama" in " ".join(p.info.get("cmdline") or []).lower():
+            name = (p.info.get("name") or "").lower()
+            if "ollama" in name:
                 procs.append(p)
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except Exception:
             continue
     return procs
 
@@ -28,15 +39,19 @@ class RSSSampler:
 
     def _run(self) -> None:
         while not self._stop.is_set():
-            total = 0
-            for p in find_ollama_procs():
-                try:
-                    total += p.memory_info().rss
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    continue
-            mb = total / (1024 * 1024)
-            if mb > self.peak_mb:
-                self.peak_mb = mb
+            try:
+                total = 0
+                for p in find_ollama_procs():
+                    try:
+                        total += p.memory_info().rss
+                    except Exception:
+                        continue
+                mb = total / (1024 * 1024)
+                if mb > self.peak_mb:
+                    self.peak_mb = mb
+            except Exception:
+                # never let this thread die — RSS sampling is best-effort
+                pass
             time.sleep(self.interval_s)
 
     def __enter__(self) -> "RSSSampler":
