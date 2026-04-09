@@ -58,23 +58,29 @@ def generate(
     num_ctx: int = 8192,
     load_budget_s: int = 600,
 ) -> GenResult:
-    """Stream from Ollama with TWO separate timeouts:
+    """Stream from Ollama's /api/chat endpoint with TWO separate timeouts:
 
     - `load_budget_s`: how long we'll wait for the first token (covers cold
       model load + prompt processing). Does NOT count against the task budget.
     - `timeout_s`: actual task generation budget, counted ONLY from TTFT onward.
       If the model generates for longer than this after producing its first
       token, we kill the stream.
+
+    Uses /api/chat (not /api/generate) so that chat-template-only GGUFs
+    (models that use {{ range .Messages }} with no .Prompt fallback) work.
     """
+    messages: list[dict] = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
     payload = {
         "model": model,
-        "prompt": prompt,
+        "messages": messages,
         "stream": True,
         "keep_alive": "10m",
         "options": {"num_ctx": num_ctx, "temperature": 0.2},
     }
-    if system:
-        payload["system"] = system
 
     # httpx per-read timeout only — no total timeout. Connection/read bound
     # by the larger of load_budget and task timeout, with generous slack.
@@ -91,7 +97,7 @@ def generate(
     eval_duration_ns = 0
 
     try:
-        with httpx.stream("POST", f"{OLLAMA_URL}/api/generate", json=payload, timeout=http_timeout) as r:
+        with httpx.stream("POST", f"{OLLAMA_URL}/api/chat", json=payload, timeout=http_timeout) as r:
             r.raise_for_status()
             for line in r.iter_lines():
                 # Pre-TTFT: enforce load budget (model loading + prompt processing)
@@ -111,12 +117,17 @@ def generate(
                     chunk = _json.loads(line)
                 except Exception:
                     continue
-                if ttft is None and chunk.get("response"):
+                # /api/chat returns {"message": {"role": "assistant", "content": "..."}, ...}
+                content = ""
+                msg = chunk.get("message") or {}
+                if isinstance(msg, dict):
+                    content = msg.get("content", "") or ""
+                if ttft is None and content:
                     now = time.perf_counter()
                     ttft = (now - start) * 1000
                     gen_start = now
-                if "response" in chunk:
-                    text_parts.append(chunk["response"])
+                if content:
+                    text_parts.append(content)
                     tokens_out += 1
                 if chunk.get("done"):
                     eval_count = chunk.get("eval_count", tokens_out)

@@ -1,0 +1,32 @@
+# Fixed Modelfile for unsloth/gemma-4-E4B-it-GGUF:Q8_0
+#
+# The upstream Unsloth Q8 GGUF ships with a broken template and stop tokens
+# that cause it to terminate immediately:
+#   - Uses non-standard <|turn>user / <turn|> instead of real Gemma format
+#   - Includes <bos> in stop list, which kills generation on token 1
+#
+# This Modelfile overrides those with the correct Gemma 4 chat template.
+#
+# Build with:
+#   ollama create gemma4-e4b-q8-fixed -f scripts/gemma4-e4b-q8.Modelfile
+
+FROM hf.co/unsloth/gemma-4-E4B-it-GGUF:Q8_0
+
+TEMPLATE """{{- if .System }}<start_of_turn>user
+{{ .System }}
+
+{{ end -}}
+{{- range $i, $msg := .Messages }}
+{{- if eq $msg.Role "system" }}
+{{- else if eq $msg.Role "user" }}<start_of_turn>user
+{{ $msg.Content }}<end_of_turn>
+{{ else if eq $msg.Role "assistant" }}<start_of_turn>model
+{{ $msg.Content }}<end_of_turn>
+{{ end -}}
+{{- end -}}
+<start_of_turn>model
+"""
+
+PARAMETER stop "<start_of_turn>"
+PARAMETER stop "<end_of_turn>"
+PARAMETER stop "<eos>"
