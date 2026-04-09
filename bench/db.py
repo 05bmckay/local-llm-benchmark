@@ -59,3 +59,26 @@ def _init(d: sqlite_utils.Database) -> None:
             "judge_model": str,
             "reasoning": str,
         }, pk="id")
+    if "tournaments" not in d.table_names():
+        d["tournaments"].create({
+            "id": str,
+            "created_at": str,
+            "mode": str,        # round_robin | bracket
+            "filter_bucket": str,
+            "filter_category": str,
+            "top_n": int,
+            "candidates_json": str,
+            "tag": str,
+        }, pk="id")
+    if "tournament_matches" not in d.table_names():
+        d["tournament_matches"].create({
+            "id": int,
+            "tournament_id": str,
+            "task_id": str,
+            "model_a": str,
+            "model_b": str,
+            "winner": str,
+            "judge_model": str,
+            "reasoning": str,
+            "round": int,
+        }, pk="id")

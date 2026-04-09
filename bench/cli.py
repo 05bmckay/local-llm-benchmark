@@ -94,6 +94,42 @@ def sweeps():
 
 
 @app.command()
+def tournament(
+    bucket: str = typer.Option(None, help="Size bucket filter (e.g. '<10B')"),
+    category: str = typer.Option(None, help="Task category filter"),
+    top_n: int = typer.Option(8, help="Number of top seeded candidates"),
+    mode: str = typer.Option("round_robin", help="round_robin | bracket"),
+    parallelism: int = typer.Option(6),
+    tag: str = typer.Option(None, help="Label for this tournament"),
+):
+    """Cross-sweep head-to-head tournament using stored outputs."""
+    from .tournament import run_tournament as _run_t
+    _run_t(
+        bucket=bucket,
+        category=category,
+        top_n=top_n,
+        mode=mode,
+        parallelism=parallelism,
+        tag=tag,
+    )
+
+
+@app.command()
+def tournaments():
+    """List all tournaments in the DB."""
+    from .db import db as _db
+    d = _db()
+    if "tournaments" not in d.table_names():
+        console.print("[yellow]no tournaments yet[/]")
+        return
+    t = Table(title="Tournaments")
+    t.add_column("ID"); t.add_column("Created"); t.add_column("Mode"); t.add_column("Bucket"); t.add_column("Category"); t.add_column("Top N"); t.add_column("Tag")
+    for row in d.execute("SELECT id, created_at, mode, filter_bucket, filter_category, top_n, tag FROM tournaments ORDER BY created_at DESC"):
+        t.add_row(row[0], (row[1] or "")[:19], row[2] or "", row[3] or "", row[4] or "", str(row[5]), row[6] or "")
+    console.print(t)
+
+
+@app.command()
 def show(run_id: int):
     """Dump a single run's prompt/response/scores from the DB."""
     from .db import db as _db

@@ -65,7 +65,7 @@ def bucket_key(b: str) -> int:
 st.sidebar.title("🎯 ai-benchmarks")
 page = st.sidebar.radio(
     "View",
-    ["Leaderboards", "Task drill-down", "Model compare", "Run inspector", "Sweeps", "Raw DB"],
+    ["Leaderboards", "Task drill-down", "Model compare", "Tournaments", "Run inspector", "Sweeps", "Raw DB"],
 )
 
 runs = load_runs()
@@ -250,6 +250,86 @@ elif page == "Model compare":
             st.code(r["response"] or "(empty)", language=None, wrap_lines=True)
             if pd.notna(r["judge_reasoning"]):
                 st.caption(f"_Judge: {r['judge_reasoning']}_")
+
+# -------------------- Tournaments --------------------
+elif page == "Tournaments":
+    st.title("🏆 Tournaments")
+    st.caption("Cross-sweep head-to-head matches using stored outputs. Run with `bench tournament --bucket \"<10B\"`.")
+
+    con = sqlite3.connect(DB_PATH)
+    try:
+        trns = pd.read_sql("SELECT * FROM tournaments ORDER BY created_at DESC", con)
+    except Exception:
+        trns = pd.DataFrame()
+    if trns.empty:
+        st.info("No tournaments run yet. Try `bench tournament --bucket \"<10B\"` from the CLI.")
+        con.close()
+        st.stop()
+
+    st.dataframe(trns, hide_index=True, width="stretch")
+
+    sel_trn = st.selectbox("Pick a tournament", trns["id"].tolist())
+    matches = pd.read_sql("SELECT * FROM tournament_matches WHERE tournament_id = ?", con, params=[sel_trn])
+    con.close()
+
+    if matches.empty:
+        st.warning("No matches for this tournament.")
+        st.stop()
+
+    # Standings via win counts
+    def _wins(m):
+        w = defaultdict(int); l = defaultdict(int); t = defaultdict(int)
+        for _, row in m.iterrows():
+            if row["winner"] == "A":
+                w[row["model_a"]] += 1; l[row["model_b"]] += 1
+            elif row["winner"] == "B":
+                w[row["model_b"]] += 1; l[row["model_a"]] += 1
+            else:
+                t[row["model_a"]] += 1; t[row["model_b"]] += 1
+        return w, l, t
+
+    from collections import defaultdict
+    w, l, t = _wins(matches)
+    models = sorted(set(matches["model_a"]).union(set(matches["model_b"])))
+
+    # Bradley-Terry Elo
+    try:
+        from bench.pairwise import bradley_terry, to_elo
+        strengths = bradley_terry([(row["model_a"], row["model_b"], row["winner"]) for _, row in matches.iterrows()])
+        elo = to_elo(strengths)
+    except Exception:
+        elo = {m: 1000.0 for m in models}
+
+    standings = pd.DataFrame([
+        {"model": m, "Elo": round(elo.get(m, 1000), 0), "W": w[m], "L": l[m], "T": t[m]}
+        for m in models
+    ]).sort_values("Elo", ascending=False)
+
+    st.subheader("Standings")
+    st.dataframe(standings, hide_index=True, width="stretch")
+
+    st.divider()
+    st.subheader("Head-to-head matrix (win % of row-model vs column-model)")
+    h2h = pd.DataFrame(0.0, index=models, columns=models)
+    for a in models:
+        for b in models:
+            if a == b:
+                continue
+            ab = matches[(matches["model_a"] == a) & (matches["model_b"] == b)]
+            ba = matches[(matches["model_a"] == b) & (matches["model_b"] == a)]
+            a_wins = (ab["winner"] == "A").sum() + (ba["winner"] == "B").sum()
+            b_wins = (ab["winner"] == "B").sum() + (ba["winner"] == "A").sum()
+            ties = (ab["winner"] == "tie").sum() + (ba["winner"] == "tie").sum()
+            total = a_wins + b_wins + ties
+            h2h.loc[a, b] = (a_wins + 0.5 * ties) / total if total > 0 else 0.5
+    st.dataframe(h2h.style.format("{:.2f}").background_gradient(axis=None, cmap="RdYlGn", vmin=0, vmax=1), width="stretch")
+
+    st.divider()
+    st.subheader("Match details")
+    task_filter = st.multiselect("Filter by task", sorted(matches["task_id"].unique()))
+    df = matches if not task_filter else matches[matches["task_id"].isin(task_filter)]
+    st.dataframe(df[["task_id", "model_a", "model_b", "winner", "reasoning"]], hide_index=True, width="stretch", height=400)
+
 
 # -------------------- Run inspector --------------------
 elif page == "Run inspector":
