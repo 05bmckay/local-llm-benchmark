@@ -61,6 +61,18 @@ def bucket_key(b: str) -> int:
         return 99
 
 
+def parse_criteria_json(value: object) -> dict | list:
+    if not isinstance(value, str):
+        return {}
+    if not value or value == "[]":
+        return {}
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    return parsed if isinstance(parsed, (dict, list)) else {}
+
+
 # -------------------- sidebar --------------------
 st.sidebar.title("🎯 ai-benchmarks")
 page = st.sidebar.radio(
@@ -177,15 +189,12 @@ elif page == "Task drill-down":
                 st.markdown("**Judge:**")
                 st.caption(f"Model: `{r['judge_model']}`")
                 st.caption(f"Reasoning: _{r['judge_reasoning']}_")
-                if r["criteria_json"] and r["criteria_json"] != "[]":
-                    try:
-                        parsed = json.loads(r["criteria_json"])
-                        criteria = parsed.get("criteria", []) if isinstance(parsed, dict) else parsed
-                        for c in criteria:
-                            mark = "✅" if c.get("pass") else "❌"
-                            st.caption(f"{mark} **{c.get('name', '?')}**: {c.get('note', '')}")
-                    except Exception:
-                        pass
+                parsed = parse_criteria_json(r["criteria_json"])
+                criteria = parsed.get("criteria", []) if isinstance(parsed, dict) else parsed
+                for c in criteria:
+                    if isinstance(c, dict):
+                        mark = "✅" if c.get("pass") else "❌"
+                        st.caption(f"{mark} **{c.get('name', '?')}**: {c.get('note', '')}")
 
 # -------------------- Model compare --------------------
 elif page == "Model compare":
@@ -205,8 +214,12 @@ elif page == "Model compare":
     if sel_cat:
         df = df[df["category"].isin(sel_cat)]
 
+    # Cross-sweep data can contain multiple runs for the same model/task pair.
+    # Use the latest run so the side-by-side compare has one row per model.
+    compare_df = df.sort_values("run_id").drop_duplicates(["task_id", "model"], keep="last")
+
     # tasks where all selected models have a run
-    task_counts = df.groupby("task_id")["model"].nunique()
+    task_counts = compare_df.groupby("task_id")["model"].nunique()
     common_tasks = task_counts[task_counts == len(sel_models)].index.tolist()
 
     st.caption(f"{len(common_tasks)} tasks have runs for all {len(sel_models)} selected models")
@@ -217,7 +230,7 @@ elif page == "Model compare":
 
     # summary stats
     summary = (
-        df[df["task_id"].isin(common_tasks)]
+        compare_df[compare_df["task_id"].isin(common_tasks)]
         .dropna(subset=["score"])
         .groupby(["model", "bucket"])
         .agg(
@@ -238,7 +251,7 @@ elif page == "Model compare":
 
     st.divider()
     sel_task = st.selectbox("Drill into a specific task", common_tasks)
-    task_df = df[df["task_id"] == sel_task].set_index("model").reindex(sel_models)
+    task_df = compare_df[compare_df["task_id"] == sel_task].set_index("model").reindex(sel_models)
 
     cols = st.columns(len(sel_models))
     for col, model in zip(cols, sel_models):
@@ -367,8 +380,9 @@ elif page == "Run inspector":
         st.subheader(f"Run {sel_run} — {r['model']} / {r['task_id']}")
         st.markdown(f"**Category**: {r['category']} • **Sweep**: `{r['sweep_id']}` • **Score**: {r['score']}")
         st.code(r["response"] or "(empty)", language=None, wrap_lines=True)
-        if r["criteria_json"]:
-            st.json(json.loads(r["criteria_json"]) if r["criteria_json"] and r["criteria_json"] != "[]" else {})
+        criteria_json = parse_criteria_json(r["criteria_json"])
+        if criteria_json:
+            st.json(criteria_json)
         if r["error"]:
             st.error(r["error"])
 

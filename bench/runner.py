@@ -75,13 +75,42 @@ def _size_from_ollama(info: dict) -> float:
     return val
 
 
+def _normalize_tag(name: str) -> str:
+    """Normalize an Ollama model tag for matching.
+
+    Handles cases where the user omits `:latest`, uses mixed case, or quotes
+    a path-like name. `foo` matches `foo:latest`; `foo:q4` only matches `foo:q4`.
+    """
+    if ":" not in name:
+        return name + ":latest"
+    return name
+
+
 def discover_models(filter_names: list[str] | None = None) -> list[registry.ModelInfo]:
     models = []
-    for m in ollama.list_models():
+    available = ollama.list_models()
+    normalized_filter: set[str] | None = None
+    if filter_names:
+        normalized_filter = {_normalize_tag(n.strip()) for n in filter_names}
+
+    # Pre-report any filter entries that don't match anything — helps the user
+    # catch typos / wrong tags instead of silently dropping models.
+    if normalized_filter is not None:
+        available_normalized = {_normalize_tag(m["name"]) for m in available}
+        missing = normalized_filter - available_normalized
+        if missing:
+            from rich.console import Console as _C
+            _c = _C()
+            _c.print(f"[yellow]⚠ filter entries not found in ollama list:[/]")
+            for m in sorted(missing):
+                _c.print(f"  • {m}")
+            _c.print(f"[dim]  (available models: {len(available)}  run `bench models` to see all)[/]")
+
+    for m in available:
         name = m["name"]
         if not registry.should_include(name):
             continue
-        if filter_names and name not in filter_names:
+        if normalized_filter and _normalize_tag(name) not in normalized_filter:
             continue
         params_b = _size_from_ollama(m)
         details = m.get("details") or {}
@@ -93,7 +122,6 @@ def discover_models(filter_names: list[str] | None = None) -> list[registry.Mode
             quant=details.get("quantization_level", "?"),
         )
         models.append(info)
-    # sort by size asc
     models.sort(key=lambda x: x.params_b)
     return models
 
