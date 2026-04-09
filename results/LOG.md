@@ -4,6 +4,46 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 
 ---
 
+## 2026-04-09 — 🫡 Wave 2 partial: **Gemma 4 E4B is the overall leader**
+
+**Correction to prior predictions.** Wave 2 judging is complete for `gemma4:e4b`. I underestimated Gemma 4 badly.
+
+### Gemma 4 E4B Q4 — per-category scores
+
+| Category | Score | vs. next best |
+|---|---:|---|
+| instruction | **5.00** | +1.33 (all others tied at 3.67) |
+| reasoning | **5.00** | +1.0 over SmolLM3 (4.0) |
+| agentic_tools | **4.80** | +0.2 over granite3.3/phi4-mini |
+| writing_business | **4.67** | +1.0 over llama3.2/gemma3n |
+| coding_python | **4.50** | +0.5 over granite3.3 |
+| coding_elixir | 4.33 | -0.67 to qwen2.5-coder:3b (5.0) |
+| pm | **4.00** | +0.5 over granite3.3/gemma3n |
+| coding_js | **3.67** | +1.3 over qwen2.5-coder:3b |
+| coding_bash | 3.33 | tied with qwen2.5-coder:3b |
+
+**Overall average: 4.37** — **1.2 points above the next-best model** (qwen2.5-coder:3b at 3.17).
+
+**Wins 7 of 9 categories, ties 1, loses only Elixir** to the dedicated Qwen coder specialist.
+
+### Implications
+
+- **`gemma4:e4b` is the new presumptive overall daily driver**, not just the `<10B` pick. It beats models in `<7B` and `<10B` simultaneously.
+- **Prior "verbose output" concern was wrong.** The high token count was thinking that improved answers, not bloat. Verbosity ≠ quality loss — it was reasoning.
+- **Q8 comparison is now even higher-stakes.** Not "does Q8 fix a problem" but "does Q8 push an already-excellent model toward perfect." Pull is in progress.
+- **Gemma 4 26B becomes Wave 3's most important test.** If 8B scores 4.37, the 26B is potentially competitive with closed frontier models on many tasks.
+- **Only qwen2.5-coder:3b retains unambiguous value as a small-model daily driver** — Elixir specialty + 93 tok/s speed where Gemma 4 E4B runs at 54 tok/s.
+- **Safety note**: gemma4:e4b was NOT in Wave 1 safety test. Need to check how it handles `tool_refuse_unsafe`. If it's safe AND this capable, it's the clear pick for autonomous agent contexts.
+
+### Predictions to calibrate against reality (updated)
+
+- **`gemma4:26b` prediction**: ≥4.5 average, likely ≥4.7. Top-1 in `<35B` bucket with no close competition.
+- **`unsloth/gemma-4-E4B-it-GGUF:Q8_0` vs stock Q4**: Q8 wins by 0.1–0.3 average. Most of the quality is already captured at Q4.
+- **`unsloth/gemma-4-26B-A4B:UD-Q4_K_XL` vs stock `gemma4:26b`**: Dynamic 2.0 wins by 0.1–0.2 average, noticeable mainly on reasoning.
+- **Hermes 4 14B**: ≥4.0 average, may challenge Gemma 4 E4B on reasoning specifically but lose on writing/PM.
+
+---
+
 ## 2026-04-08 — Research: dark horse candidates for Wave 2/3
 
 Targeted search for models that could upset the current leaders. Benchmarks cited from LiveBench, Aider Polyglot, BFCL V4, and vendor-reported MMLU/ARC-C/GPQA Diamond.
