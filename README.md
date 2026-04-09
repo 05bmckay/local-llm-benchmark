@@ -101,7 +101,8 @@ All timing metrics use Ollama's server-reported `eval_count` and `eval_duration`
 | 16 | hermes3:8b | <10B | 3.17 | 47.2 | 0.5s | 29.9 |
 | 17 | llama3.2-3b | <7B | 3.12 | 100.7 | 0.3s | 62.9 |
 | 18 | phi4-mini-3.8b | <7B | 3.00 | 73.5 | 0.3s | 44.1 |
-| 19 | granite4-h-tiny | <7B | 3.51 | 69.9 | 0.2s | 49.1 |
+| 19 | granite4:3b-h (micro) | <7B | 3.63 | 53.2 | 0.3s | 38.6 |
+| 20 | granite4-h-tiny | <7B | 3.51 | 69.9 | 0.2s | 49.1 |
 | 20 | smollm3-3b | <7B | 2.85 | 97.3 | 0.3s | 55.5 |
 | 20 | xLAM-2-8b | <10B | 2.83 | 47.3 | 0.4s | 26.7 |
 | 21 | qwen2.5-1.5b | <3B | 2.69 | 164.8 | 0.2s | 88.5 |
@@ -128,14 +129,17 @@ All timing metrics use Ollama's server-reported `eval_count` and `eval_duration`
 
 | rank | model | quality | tok/s | composite |
 |---|---|---|---|---|
-| 1 | **gemma3n** | 3.52 | 46.8 | 33.0 |
-| 2 | **granite4-h-tiny** | 3.51 | 69.9 | 49.1 |
-| 3 | qwen2.5-coder-3b | 3.44 | 94.7 | 65.1 |
-| 4 | llama3.2-3b | 3.12 | 100.7 | 62.9 |
-| 5 | phi4-mini-3.8b | 3.00 | 73.5 | 44.1 |
-| 6 | smollm3-3b | 2.85 | 97.3 | 55.5 |
+| 1 | **granite4:3b-h** (micro) | 3.63 | 53.2 | 38.6 |
+| 2 | gemma3n | 3.52 | 46.8 | 33.0 |
+| 3 | **granite4-h-tiny** | 3.51 | 69.9 | 49.1 |
+| 4 | qwen2.5-coder-3b | 3.44 | 94.7 | 65.1 |
+| 5 | llama3.2-3b | 3.12 | 100.7 | 62.9 |
+| 6 | phi4-mini-3.8b | 3.00 | 73.5 | 44.1 |
+| 7 | smollm3-3b | 2.85 | 97.3 | 55.5 |
 
-**Quality tie: gemma3n (3.52) and granite4-h-tiny (3.51)** — effectively identical quality, but granite4 is 50% faster (69.9 vs 46.8 tok/s) with a snappier 245ms TTFT vs 672ms. IBM's dark horse. Strong at coding_python (4.25) and agentic_tools (4.10). qwen2.5-coder-3b still has the best composite (65.1) due to raw speed. For coding tasks specifically, qwen2.5-coder-3b is the pick.
+**IBM's Granite 4 Mamba-2 hybrids dominate this tier.** The 3B micro (3.63) is the new quality champion from just 1.9 GB on disk — best quality-per-GB in the entire benchmark. The 7B tiny (3.51) is faster (69.9 vs 53.2 tok/s) thanks to MoE routing (only 1B active params). Both beat gemma3n on quality with faster TTFT. qwen2.5-coder-3b still has the best composite (65.1) due to raw speed. For coding tasks specifically, qwen2.5-coder-3b is the pick.
+
+*Note: granite4:32b-a9b-h (the "small" variant, 19 GB Q4) was attempted but caused severe memory pressure on 24GB — the 16% CPU spillover made it unusable. Deferred until tested on a 32GB+ machine.*
 
 ### <10B — The daily driver tier
 
@@ -286,7 +290,7 @@ The benchmark system is fully autonomous and reusable:
 
 ### Stats
 
-- 23 models tested across 6 size buckets
+- 25 models tested across 6 size buckets
 - 806 successful generation runs
 - 852 absolute judge scores
 - 4,005 pairwise tournament matches across 8 tournaments
@@ -306,6 +310,7 @@ The benchmark system is fully autonomous and reusable:
 | **Agentic / tool use** | qwen3-coder-30b | 4.80 agentic score, clean tool-call JSON generation. |
 | **Background agent** | devstral-small-2 | Elo #1, most consistent head-to-head winner. Slow for interactive but ideal for batch. |
 | **Travel / low power** | qwen2.5-1.5b | 165 tok/s, 0.2s TTFT, runs on anything. Composite champion in its weight class. |
+| **Best quality per GB** | granite4:3b-h | 3.63 quality from 1.9 GB on disk. IBM's Mamba-2 hybrid punches way above weight. |
 | **Quick Elixir help** | qwen2.5-coder-3b | Perfect 5.00 in Elixir at 95 tok/s. Only 1.9GB on disk. |
 
 ---
