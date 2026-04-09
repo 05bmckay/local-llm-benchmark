@@ -4,6 +4,111 @@ Running log of bench insights, removals, and daily-driver picks. Newest at top.
 
 ---
 
+## 2026-04-09 — Wave 2 final + Wave 1C + infrastructure overhaul + Wave 2.5 disaster
+
+### Wave 2 final results
+
+Wave 2 finished fully (4 models × 35 tasks). Key findings layered on top of the earlier Gemma 4 E4B partial:
+
+| Rank | Model | Bucket | Quality | Tok/s | Composite |
+|---:|---|---|---:|---:|---:|
+| **1** | `gemma4:e4b` | `<10B` | **4.47** | 54.5 | 48.7 |
+| **2** | `phi4-reasoning:14b` | `<15B` | **4.29** | 18.6 | 16.0 |
+| 3 | `deepseek-r1:14b` | `<15B` | 3.80 | 20.0 | 15.2 |
+| 4 | `gemma3:12b-it-qat` | `<15B` | 3.69 | 25.8 | 19.0 |
+
+**phi4-reasoning:14b is the coding king** — wins `coding_python` (4.75) and `coding_js` (4.33), the only two categories Gemma 4 E4B doesn't take. But it's 18 tok/s and 12 GB RSS — slow and heavy. Use it when you want the best answer, not the fastest.
+
+### Wave 1C — tiny bucket filled
+
+| Model | Quality | Tok/s | Composite |
+|---|---:|---:|---:|
+| `qwen2.5:1.5b-instruct` | 2.69 | **164.8** | **88.5** ← *composite champion of entire bench* |
+| `smollm2:1.7b` | 2.34 | 112.0 | 52.5 |
+
+`qwen2.5:1.5b-instruct` scores lower on quality but is so fast it wins the `quality × tok/s` composite across every bucket. Best pick for battery/draft/speculative-decoding use.
+
+### Updated daily-driver stack
+
+| Role | Pick | Why |
+|---|---|---|
+| **Default chat + agentic** | `gemma4:e4b` | Best overall quality, 3.2GB RAM, 54 tok/s |
+| **Heavy coding** | `phi4-reasoning:14b` | Wins Python (4.75) and JS (4.33) |
+| **Elixir specifically** | `qwen2.5-coder:3b` | 5.0 score, nothing else touches it |
+| **Fast / battery** | `qwen2.5:1.5b-instruct` | Highest composite, 165 tok/s |
+| **Structured output / PM** | `gemma4:e4b` | 4.5 instruction, 4.5 pm |
+
+### Infrastructure shipped
+
+1. **`/api/chat` endpoint switch** — bench now uses `/api/chat` instead of `/api/generate`. Required to support modern chat-template-only GGUFs (which use `{{ range .Messages }}` with no `.Prompt` fallback).
+
+2. **Parallel judging via ThreadPoolExecutor** — 6 concurrent Claude CLI subprocesses, ~5× speedup on the judge phase. `--judge-parallelism` flag exposed.
+
+3. **`--resume` flag** — killed sweeps can be picked up via `bench run --resume <sweep_id>`. Skips already-completed (model, task) pairs in the DB and already-scored runs per judge.
+
+4. **Sampler hardening** — RSS sampler thread was crashing on macOS 26's `sysctl(KERN_PROCARGS2)` restriction when inspecting `cmdline` of protected processes. Now uses name-only matching and catches all exceptions.
+
+5. **Scaled timeouts by bucket** — per-task timeout now scales with model size (`<35B` gets 720s floor) and the task clock only starts after TTFT (cold-load time no longer eats the task budget).
+
+6. **Tag-tolerant model discovery** — bare names like `gemma4-e4b-q8-fixed` now match `gemma4-e4b-q8-fixed:latest` automatically. Warns on missing filter entries so silent drops stop happening.
+
+7. **`bench tournament` command** — cross-sweep head-to-head using stored outputs. Round-robin or bracket mode, Bradley-Terry → Elo standings. New `tournaments` and `tournament_matches` tables.
+
+8. **Streamlit explorer (`explorer/app.py`)** — 6 views: Leaderboards, Task drill-down, Model compare, Tournaments, Run inspector, Raw DB. Cross-sweep data visualization, category heatmaps, head-to-head matrices, CSV export.
+
+9. **Bradley-Terry pairwise ranking** — all pairwise verdicts now feed into a B-T strength model → Elo ratings per model per category/bucket.
+
+### Wave 2.5 disaster + architecture investigation
+
+Attempted Wave 2.5 with 7 new contenders. **4 of them failed to load entirely** with HTTP 500 errors from Ollama:
+
+- `hf.co/unsloth/gemma-4-E4B-it-GGUF:Q8_0` → `unknown model architecture: 'gemma4'`
+- `hf.co/Jackrong/Qwen3.5-4B-Claude-distill`
+- `hf.co/Jackrong/Qwen3.5-9B-Claude-distill-v2`
+- `hf.co/Jackrong/Qwen3.5-27B-Claude-distill-v2` → all `unknown model architecture: 'qwen35'`
+
+**Root cause traced through:**
+1. Ollama's bundled llama.cpp pre-dates the PRs that added `gemma4` (llama.cpp b8635) and `qwen35` (b8149) architecture support
+2. Upgraded brew CLI 0.17.4 → 0.20.4 and Ollama.app 0.20.3 → 0.20.4 — still fails
+3. **Ollama 0.20.x's bundled llama.cpp still lacks these arch handlers**
+4. Stock `gemma4:e4b` works because Ollama's internal library uses a different metadata format that its Go-based engine handles; HF community GGUFs use the raw arch strings that must go through the llama.cpp backend
+5. Specifically, [Unsloth's `Q8_0` is a *split model*](https://github.com/ollama/ollama/issues/15235) that requires llama.cpp backend, which has no gemma4 support yet
+
+**Verified fixes from upstream discussions:**
+- Unsloth Gemma 4 E4B `Q4_K_M` and `Q6_K` are [verified working on Ollama 0.20.2+](https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/discussions) — they're non-split, don't need the broken backend path
+- `Q8_0` is not usable on any current Ollama release, period
+- Ollama-hosted community re-uploads of the Qwen3.5 Claude distills may have metadata normalized through Ollama's `push` pipeline — worth testing
+
+### Dead-end rabbit holes I burned time on (record so I don't repeat)
+
+- **Custom Modelfile with overridden template + stop tokens for Gemma 4 Q8** — didn't fix it because the issue was llama.cpp backend not supporting the arch, not the template. Template fix was correct but useless.
+- **Switching to raw `llama.cpp` via brew** — brew's llama.cpp 8680 bottle runs at ~1 token/sec on this M4 Pro because its Metal backend path is broken for "pre-M5" devices. Unusable for benchmarking. Not worth compiling from source for 4 stubborn models.
+- **Homebrew CLI upgrade alone** — upgrades only the CLI binary, not the Ollama.app daemon. Daemon lives in `/Applications/Ollama.app/Contents/Resources/ollama` and must be replaced separately.
+
+### Deleted broken models (freed ~32 GB)
+
+- `hf.co/unsloth/gemma-4-E4B-it-GGUF:Q8_0` (9.2 GB)
+- `gemma4-e4b-q8-fixed:latest` (custom Modelfile derivative)
+- `hf.co/Jackrong/Qwen3.5-4B-Claude-distill` (3.4 GB)
+- `hf.co/Jackrong/Qwen3.5-9B-Claude-distill-v2` (6.6 GB)
+- `hf.co/Jackrong/Qwen3.5-27B-Claude-distill-v2` (17 GB)
+
+### Replacement pulls (in progress)
+
+| Model | Bucket | Answers |
+|---|---|---|
+| `phi4:14b` (base, non-reasoning) | `<15B` | Clean A/B vs `phi4-reasoning:14b` — does the reasoning fine-tune earn its 3× latency? |
+| `kwangsuklee/Qwen3.5-9B-Claude-distill` (Ollama-hosted) | `<10B` | Does Claude distillation add quality to Qwen3.5 base? Ollama push pipeline may have fixed qwen35 metadata |
+| `hf.co/unsloth/gemma-4-E4B-it-GGUF:Q6_K` | `<10B` | Does Unsloth Dynamic 2.0 at Q6_K beat stock `gemma4:e4b` Q4_K_M? |
+
+### Infrastructure side-effects to test next run
+
+- `/api/chat` switch **validated on `gemma4:e4b`** (scored 5/5 on all 4 reasoning tasks in smoke test, matching earlier baseline) — no regression for standard models.
+- `/api/chat` switch is **untested on models already in the DB from earlier sweeps** — they were run on `/api/generate`. If any future reruns show score drift, this is a likely cause.
+- **Wave 1 models have `n=30-31`** instead of 35 because 5 BFCL-style tool tasks were added after Wave 1. `llama3.2`, `gemma3n`, `qwen2.5-coder:3b`, and `deepseek-r1:1.5b` are under-represented on `agentic_tools`. Backfill command documented.
+
+---
+
 ## 2026-04-09 — 🫡 Wave 2 partial: **Gemma 4 E4B is the overall leader**
 
 **Correction to prior predictions.** Wave 2 judging is complete for `gemma4:e4b`. I underestimated Gemma 4 badly.
